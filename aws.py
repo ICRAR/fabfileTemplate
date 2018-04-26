@@ -33,7 +33,7 @@ from fabric.state import env
 from fabric.tasks import execute
 from fabric.utils import puts, abort, fastprint
 
-from ngas import ngas_revision, ngas_user
+from APPspecific import APP_revision, APP_user
 from utils import default_if_empty, whatsmyip, check_ssh, \
     key_filename
 
@@ -45,7 +45,7 @@ AMI_IDs = {
            'Amazon':'ami-7c807d14',
            'Amazon-hvm': 'ami-60b6c60a',
            'CentOS': 'ami-8997afe0',
-           'Old_CentOS':'ami-aecd60c7', 
+           'Old_CentOS':'ami-aecd60c7',
            'SLES-SP2':'ami-e8084981',
            'SLES-SP3':'ami-c08fcba8'
            }
@@ -53,7 +53,7 @@ AMI_IDs = {
 # Instance creation defaults
 DEFAULT_AWS_AMI_NAME = 'Amazon'
 DEFAULT_AWS_INSTANCES = 1
-DEFAULT_AWS_INSTANCE_NAME_TPL = 'NGAS_{0}' # gets formatted with the git branch name
+DEFAULT_AWS_INSTANCE_NAME_TPL = 'APP_{0}' # gets formatted with the git branch name
 DEFAULT_AWS_INSTANCE_TYPE = 't1.micro'
 DEFAULT_AWS_KEY_NAME = 'icrar_ngas'
 DEFAULT_AWS_SEC_GROUP = 'NGAS' # Security group allows SSH and other ports
@@ -167,14 +167,14 @@ def create_instances(conn, sgid):
     # Local user and host
     userAThost = userAtHost()
 
-    # We save the user under which we install NGAS for later display
-    nuser = ngas_user()
+    # We save the user under which we install APP for later display
+    nuser = APP_user()
 
     # Tag the instance
     for name, instance in zip(names, instances):
         conn.create_tags([instance.id], {'Name': name,
                                          'Created By':userAThost,
-                                         'NGAS User': nuser,
+                                         'APP User': nuser,
                                          })
 
     # Associate the IP if needed
@@ -193,7 +193,7 @@ def create_instances(conn, sgid):
     return host_names
 
 def default_instance_name():
-    rev = ngas_revision()
+    rev = APP_revision()
     return DEFAULT_AWS_INSTANCE_NAME_TPL.format(rev)
 
 @task
@@ -255,7 +255,7 @@ def print_instance(inst):
     for k, val in tagdict.items():
         if k == 'Name':
             val = blue(val)
-        elif k == 'NGAS User':
+        elif k == 'APP User':
             nuser = val
         puts('{0}: {1}'.format(k,val))
     if inst_state == 'running':
