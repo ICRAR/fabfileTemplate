@@ -78,6 +78,96 @@ APP_ROOT_DIR_NAME = 'APP'
 # This is relative to the APP_USER home directory
 APP_INSTALL_DIR_NAME = APP.lower() + '_rt'
 
+# NOTE: Make sure to modify the following lists to meet the requirements for
+# the application.
+
+
+# Alpha-sorted packages per package manager
+env.pkgs = {
+            'YUM_PACKAGES': [
+                     'autoconf',
+                     'bzip2-devel',
+                     'cfitsio-devel',
+                     'db4-devel',
+                     'gcc',
+                     'gdbm-devel',
+                     'git',
+                     'libdb-devel',
+                     'libtool',
+                     'make',
+                     'openssl-devel',
+                     'patch',
+                     'postfix',
+                     'postgresql-devel',
+                     'python27-devel',
+                     'python-devel',
+                     'readline-devel',
+                     'sqlite-devel',
+                     'tar',
+                     'wget',
+                     'zlib-devel',
+                     ],
+            'APT_PACKAGES': [
+                    'autoconf',
+                    'libcfitsio-dev',
+                    'libdb5.3-dev',
+                    'libdb-dev',
+                    'libgdbm-dev',
+                    'libreadline-dev',
+                    'libsqlite3-dev',
+                    'libssl-dev',
+                    'libtool',
+                    'libzlcore-dev',
+                    'make',
+                    'patch',
+                    'postgresql-client',
+                    'python-dev',
+                    'python-setuptools',
+                    'tar',
+                    'sqlite3',
+                    'wget',
+                    'zlib1g-dbg',
+                    'zlib1g-dev',
+                    ],
+            'SLES_PACKAGES': [
+                    'autoconf',
+                    'automake',
+                    'gcc',
+                    'gdbm-devel',
+                    'git',
+                    'libdb-4_5',
+                    'libdb-4_5-devel',
+                    'libtool',
+                    'make',
+                    'openssl',
+                    'patch',
+                    'python-devel',
+                    'python-html5lib',
+                    'python-pyOpenSSL',
+                    'python-xml',
+                    'postfix',
+                    'postgresql-devel',
+                    'sqlite3-devel',
+                    'wget',
+                    'zlib',
+                    'zlib-devel',
+                    ],
+            'BREW_PACKAGES': [
+                    'autoconf',
+                    'automake',
+                    'berkeley-db',
+                    'libtool',
+                    'wget',
+                    ],
+            'PORT_PACKAGES': [
+                    'autoconf',
+                    'automake',
+                    'db60',
+                    'libtool',
+                    'wget',
+                    ]
+        }
+
 
 def APP_user():
     default_if_empty(env, 'APP_USER', APP_USER)
