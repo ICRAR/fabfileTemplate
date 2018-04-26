@@ -512,6 +512,7 @@ def copy_sources():
 
     success("APP sources copied")
 
+
 @parallel
 def prepare_install_and_check():
 
@@ -519,7 +520,7 @@ def prepare_install_and_check():
     nuser = APP_user()
     install_system_packages()
     create_user(nuser)
-    #postfix_config()
+    # postfix_config()
 
     # Go, go, go!
     with settings(user=nuser):
@@ -527,6 +528,7 @@ def prepare_install_and_check():
 
     # Install the /etc/init.d script for automatic start
     install_sysv_init_script(nsd, nuser, cfgfile)
+
 
 @parallel
 def install_and_check():
@@ -541,6 +543,7 @@ def install_and_check():
     install_user_profile()
     start_APP_and_check_status(tgt_cfg)
     return APP_source_dir(), tgt_cfg
+
 
 def upload_to(host, filename, port=7777):
     """

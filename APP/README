@@ -1,0 +1,3 @@
+Directory to hold application data during run-time. It
+can be populated with initial content as the APP
+requires it.
