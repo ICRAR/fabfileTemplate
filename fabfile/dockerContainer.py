@@ -35,7 +35,7 @@ from fabric.state import env
 from fabric.tasks import execute
 from fabric.utils import puts
 
-from ngas import ngas_root_dir, ngas_user, ngas_source_dir
+from APPspecific import APP_root_dir, APP_user, APP_source_dir
 from system import get_fab_public_key
 from utils import check_ssh, generate_key_pair, run, success, failure,\
     default_if_empty, info
@@ -47,16 +47,16 @@ __all__ = []
 
 DockerContainerState = collections.namedtuple('DockerContainerState', 'client container')
 
-def docker_keep_ngas_root():
-    key = 'DOCKER_KEEP_NGAS_ROOT'
+def docker_keep_APP_root():
+    key = 'DOCKER_KEEP_APP_ROOT'
     return key in env
 
-def docker_keep_ngas_src():
-    key = 'DOCKER_KEEP_NGAS_SRC'
+def docker_keep_APP_src():
+    key = 'DOCKER_KEEP_APP_SRC'
     return key in env
 
 def docker_image_repository():
-    default_if_empty(env, 'DOCKER_IMAGE_REPOSITORY', 'icrar/ngas')
+    default_if_empty(env, 'DOCKER_IMAGE_REPOSITORY', 'icrar/APP')
     return env.DOCKER_IMAGE_REPOSITORY
 
 def add_public_ssh_key(cont):
@@ -85,14 +85,14 @@ def setup_container():
     from docker.client import DockerClient
 
     image = 'centos:centos7'
-    container_name = 'ngas_installation_target'
+    container_name = 'APP_installation_target'
     cli = DockerClient.from_env(version='auto', timeout=10)
 
     # Create and start a container using the newly created stage1 image
     cont = cli.containers.run(image=image, name=container_name, remove=False, detach=True, tty=True)
     success("Created container %s from %s" % (container_name, image))
 
-    # Find out container IP, prepare container for NGAS installation
+    # Find out container IP, prepare container for APP installation
     try:
         host_ip = cli.api.inspect_container(cont.id)['NetworkSettings']['IPAddress']
 
@@ -113,7 +113,7 @@ def setup_container():
         info('Starting OpenSSH deamon in container')
         cont.exec_run('/usr/sbin/sshd -D', detach=True)
     except:
-        failure("Error while preparing container for NGAS installation, cleaning up...")
+        failure("Error while preparing container for APP installation, cleaning up...")
         cont.stop()
         cont.remove()
         raise
@@ -131,7 +131,7 @@ def setup_container():
     with settings(disable_known_hosts=True):
         execute(check_ssh)
 
-    success('Container successfully setup! NGAS installation will start now')
+    success('Container successfully setup! APP installation will start now')
     return DockerContainerState(cli, cont)
 
 def cleanup_container():
@@ -154,14 +154,14 @@ def cleanup_container():
     run('yum clean all')
 
     # Remove user directories that are not needed anymore
-    with settings(user=ngas_user()):
+    with settings(user=APP_user()):
 
-        # By default we do not ship the image with a working NGAS directory
+        # By default we do not ship the image with a working APP directory
         to_remove = ['~/.cache']
-        if not docker_keep_ngas_src():
-            to_remove.append(ngas_source_dir())
-        if not docker_keep_ngas_root():
-            to_remove.append(ngas_root_dir())
+        if not docker_keep_APP_src():
+            to_remove.append(APP_source_dir())
+        if not docker_keep_APP_root():
+            to_remove.append(APP_root_dir())
 
         for d in to_remove:
             run ('rm -rf %s' % d,)
@@ -180,7 +180,7 @@ def create_final_image(state):
     cont.exec_run('rm -rf /var/log')
     cont.exec_run('rm -rf /var/lib/yum')
 
-    conf = {'Cmd': ["/usr/bin/su", "-", "ngas", "-c", "/home/ngas/ngas_rt/bin/ngamsServer -cfg /home/ngas/NGAS/cfg/ngamsServer.conf -autoOnline -force -v 4"]}
+    conf = {'Cmd': ["/usr/bin/su", "-", "APP", "-c", "/home/APP/APP_rt/bin/ngamsServer -cfg /home/APP/APP/cfg/ngamsServer.conf -autoOnline -force -v 4"]}
     image_repo = docker_image_repository()
 
     try:

@@ -32,108 +32,16 @@ from fabric.utils import puts, abort
 from system import check_command, get_linux_flavor
 from utils import sudo, run
 
-
 # Don't re-export the tasks imported from other modules, only ours
-__all__ = ['install_homebrew', 'install_system_packages', 'system_check']
-
-
-# NOTE: Make sure to modify the following lists to meet the requirements for
-# the application.
-
-# Alpha-sorted packages per package manager
-YUM_PACKAGES = [
-   'autoconf',
-   'bzip2-devel',
-   'cfitsio-devel',
-   'db4-devel',
-   'gcc',
-   'gdbm-devel',
-   'git',
-   'libdb-devel',
-   'libtool',
-   'make',
-   'openssl-devel',
-   'patch',
-   'postfix',
-   'postgresql-devel',
-   'python27-devel',
-   'python-devel',
-   'readline-devel',
-   'sqlite-devel',
-   'tar',
-   'wget',
-   'zlib-devel',
-]
-
-APT_PACKAGES = [
-    'autoconf',
-    'libcfitsio-dev',
-    'libdb5.3-dev',
-    'libdb-dev',
-    'libgdbm-dev',
-    'libreadline-dev',
-    'libsqlite3-dev',
-    'libssl-dev',
-    'libtool',
-    'libzlcore-dev',
-    'make',
-    'patch',
-    'postgresql-client',
-    'python-dev',
-    'python-setuptools',
-    'tar',
-    'sqlite3',
-    'wget',
-    'zlib1g-dbg',
-    'zlib1g-dev',
-]
-
-SLES_PACKAGES = [
-    'autoconf',
-    'automake',
-    'gcc',
-    'gdbm-devel',
-    'git',
-    'libdb-4_5',
-    'libdb-4_5-devel',
-    'libtool',
-    'make',
-    'openssl',
-    'patch',
-    'python-devel',
-    'python-html5lib',
-    'python-pyOpenSSL',
-    'python-xml',
-    'postfix',
-    'postgresql-devel',
-    'sqlite3-devel',
-    'wget',
-    'zlib',
-    'zlib-devel',
-]
-
-BREW_PACKAGES = [
-    'autoconf',
-    'automake',
-    'berkeley-db',
-    'libtool',
-    'wget',
-]
-
-PORT_PACKAGES = [
-    'autoconf',
-    'automake',
-    'db60',
-    'libtool',
-    'wget',
-]
-
+__all__ = ['install_homebrew', 'install_system_packages', 'system_check',
+           'list_packages']
 
 def extra_packages():
     key = 'APP_EXTRA_PACKAGES'
     if key in env:
         return env[key].split(',')
     return []
+
 
 def install_yum(packages):
     """
@@ -299,29 +207,30 @@ def install_system_packages():
 
     # Install required packages
     linux_flavor = get_linux_flavor()
+
     if (linux_flavor in ['CentOS', 'Amazon Linux']):
         # Update the machine completely
         errmsg = sudo('yum --assumeyes --quiet update', combine_stderr=True, warn_only=True)
         processCentOSErrMsg(errmsg)
-        install_yum(YUM_PACKAGES)
+        install_yum(env.pkgs['YUM_PACKAGES'])
         if linux_flavor == 'CentOS':
             sudo('/etc/init.d/iptables stop')  # CentOS firewall blocks APP port!
     elif (linux_flavor in ['Ubuntu', 'Debian']):
         errmsg = sudo('apt-get -qq -y update', combine_stderr=True, warn_only=True)
-        install_apt(APT_PACKAGES)
-    elif linux_flavor in ['SUSE','SLES-SP2', 'SLES-SP3', 'SLES', 'openSUSE']:
+        install_apt(env.pkgs['APT_PACKAGES'])
+    elif linux_flavor in ['SUSE', 'SLES-SP2', 'SLES-SP3', 'SLES', 'openSUSE']:
         errmsg = sudo('zypper -n -q patch', combine_stderr=True, warn_only=True)
-        install_zypper(SLES_PACKAGES)
+        install_zypper(env.pkgs['SLES_PACKAGES'])
     elif linux_flavor == 'Darwin':
         pkg_mgr = check_brew_port()
         if pkg_mgr is None:
             install_homebrew()
             pkg_mgr = 'brew'
         if pkg_mgr == 'brew':
-            for package in BREW_PACKAGES:
+            for package in env.pkgs['BREW_PACKAGES']:
                 install_brew(package)
         elif pkg_mgr == 'port':
-            for package in PORT_PACKAGES:
+            for package in env.pkgs['PORT_PACKAGES']:
                 install_port(package)
     else:
         abort("Unsupported linux flavor detected: {0}".format(linux_flavor))
@@ -347,3 +256,10 @@ def system_check():
         puts("All required packages are installed.")
     else:
         puts("At least one package is missing!")
+
+
+@task
+def list_packages():
+    import pprint
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(env.pkgs)
