@@ -344,7 +344,11 @@ def APP_build_cmd(no_client, develop, no_doc_dependencies):
     # particular difficult because it requires some flags to be passed on
     # (particularly if using MacOSX's port
     # >>>> NOTE: This function will need heavy customisation <<<<<<
+    # >>>> It is ignored for now <<<<<
     build_cmd = []
+    # >>>> remove next line once ajusted <<<<
+    return ''.join(build_cmd)
+    # <<<<<<
     linux_flavor = get_linux_flavor()
     if linux_flavor == 'Darwin':
         pkgmgr = check_brew_port()
@@ -387,11 +391,12 @@ def build_APP():
         extra_pkgs = extra_python_packages()
         if extra_pkgs:
             virtualenv('pip install %s' % ' '.join(extra_pkgs))
-        no_client = APP_no_client()
-        develop = APP_develop()
+        develop = False
         no_doc_dependencies = APP_doc_dependencies()
-        build_cmd = APP_build_cmd(no_client, develop, no_doc_dependencies)
-        virtualenv(build_cmd)
+        build_cmd = APP_build_cmd(False, develop, no_doc_dependencies)
+        print build_cmd
+        if build_cmd != '':
+            virtualenv(build_cmd)
     success("APP built and installed")
 
 
