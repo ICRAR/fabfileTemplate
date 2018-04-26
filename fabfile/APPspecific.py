@@ -370,6 +370,7 @@ def install_sysv_init_script(nsd, nuser, cfgfile):
 
     success("APP init script installed")
 
+
 def create_sources_tarball(tarball_filename):
     # Make sure we are git-archivin'ing from the root of the repository,
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
