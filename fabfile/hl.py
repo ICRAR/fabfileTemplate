@@ -40,7 +40,6 @@ from APPspecific import install_and_check, prepare_install_and_check
 from APPspecific import create_sources_tarball, upload_to, APP_revision
 
 
-
 # Don't re-export the tasks imported from other modules, only ours
 __all__ = ['user_deploy', 'operations_deploy', 'aws_deploy', 'docker_image',
            'prepare_release', 'upload_release']
@@ -93,8 +92,8 @@ def docker_image():
     # We disable the known hosts check since docker containers created at
     # different times might end up having the same IP assigned to them, and the
     # ssh known hosts check will fail
-    # Finally, we also hardcode that the doc dependencies will *not* be installed
-    # into the docker container, so we generate a thiner image
+    # Finally, we also hardcode that the doc dependencies will *not* be
+    # installed into the docker container, so we generate a thiner image
     with settings(disable_known_hosts=True, APP_NO_DOC_DEPENDENCIES=True):
         execute(prepare_install_and_check)
         create_final_image(dockerState)

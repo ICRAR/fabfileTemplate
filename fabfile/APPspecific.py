@@ -45,7 +45,7 @@ from system import check_dir, download, check_command, \
     create_user, get_linux_flavor, python_setup, check_python, \
     MACPORT_DIR
 from utils import is_localhost, home, default_if_empty, sudo, run, success,\
-    failure, info
+    info
 
 # Don't re-export the tasks imported from other modules, only the ones defined
 # here
@@ -269,8 +269,8 @@ def virtualenv_setup():
     if check_dir(APPInstallDir):
         overwrite = APP_overwrite_installation()
         if not overwrite:
-            msg = ("%s exists already. Specify APP_OVERWRITE_INSTALLATION to overwrite, "
-                   "or a different APP_INSTALL_DIR location")
+            msg = ("%s exists already. Specify APP_OVERWRITE_INSTALLATION "
+                   "to overwrite, or a different APP_INSTALL_DIR location")
             abort(msg % (APPInstallDir,))
         run("rm -rf %s" % (APPInstallDir,))
 
@@ -292,7 +292,8 @@ def virtualenv_setup():
             run('mkdir ~/.pip')
             with cd('~/.pip'):
                 download('http://curl.haxx.se/ca/cacert.pem')
-        run('echo "[global]" > ~/.pip/pip.conf; echo "cert = {0}/.pip/cacert.pem" >> ~/.pip/pip.conf;'.format(home()))
+        run('echo "[global]" > ~/.pip/pip.conf; echo '
+            '"cert = {0}/.pip/cacert.pem" >> ~/.pip/pip.conf;'.format(home()))
 
     # Update pip and install wheel; this way we can install binary wheels from
     # PyPI if available (like astropy)
@@ -354,7 +355,8 @@ def APP_build_cmd(no_client, develop, no_doc_dependencies):
         pkgmgr = check_brew_port()
         if pkgmgr == 'brew':
             cellardir = check_brew_cellar()
-            db_version = run('ls -tr1 {0}/berkeley-db'.format(cellardir)).split()[-1]
+            db_version = run('ls -tr1 {0}/berkeley-db'.
+                             format(cellardir)).split()[-1]
             db_dir = '{0}/berkeley-db/{1}'.format(cellardir, db_version)
             build_cmd.append('BERKELEYDB_DIR={0}'.format(db_dir))
             if not no_client:
@@ -368,10 +370,9 @@ def APP_build_cmd(no_client, develop, no_doc_dependencies):
             if not no_client:
                 build_cmd.append('CFLAGS=-I' + incdir)
                 build_cmd.append('LDFLAGS=-L' + libdir)
-        build_cmd.append('YES_I_HAVE_THE_RIGHT_TO_USE_THIS_BERKELEY_DB_VERSION=1')
+        build_cmd.append(
+            'YES_I_HAVE_THE_RIGHT_TO_USE_THIS_BERKELEY_DB_VERSION=1')
 
-    if APP_no_crc32c():
-        build_cmd.append('APP_NO_CRC32C=1')
     build_cmd.append('./build.sh')
     if not no_client:
         build_cmd.append("-c")
@@ -420,8 +421,8 @@ def prepare_APP_data_dir():
     # Deal with the errors here
     error = 'APP root directory preparation under {0} failed.\n'.format(nrd)
     if res.return_code == 2:
-        error = (nrd + " already exists. Specify APP_OVERWRITE_ROOT to overwrite, "
-                 "or a different APP_ROOT_DIR location")
+        error = (nrd + " already exists. Specify APP_OVERWRITE_ROOT to "
+                 "overwrite, or a different APP_ROOT_DIR location")
     else:
         error = res
     abort(error)
@@ -447,15 +448,11 @@ def install_sysv_init_script(nsd, nuser, cfgfile):
     sudo('chmod 755 /etc/init.d/APP-server')
 
     # Options file installation and edition
-    ntype = APP_server_type()
     sudo('cp %s/fabfile/init/sysv/APP-server.options %s' % (nsd, opt_file))
     sudo('chmod 644 %s' % (opt_file,))
     sed(opt_file, '^USER=.*', 'USER=%s' % (nuser,), use_sudo=True, backup='')
-    sed(opt_file, '^CFGFILE=.*', 'CFGFILE=%s' % (cfgfile,), use_sudo=True, backup='')
-    if ntype == 'cache':
-        sed(opt_file, '^CACHE=.*', 'CACHE=YES', use_sudo=True, backup='')
-    elif ntype == 'data-mover':
-        sed(opt_file, '^DATA_MOVER=.*', 'DATA_MOVER=YES', use_sudo=True, backup='')
+    sed(opt_file, '^CFGFILE=.*', 'CFGFILE=%s' % (cfgfile,), use_sudo=True,
+        backup='')
 
     # Enabling init file on boot
     if check_command('update-rc.d'):
@@ -470,7 +467,9 @@ def create_sources_tarball(tarball_filename):
     # Make sure we are git-archivin'ing from the root of the repository,
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     if has_local_git_repo():
-        local('cd {0}; git archive -o {1} {2}'.format(repo_root, tarball_filename, APP_revision()))
+        local('cd {0}; git archive -o {1} {2}'.format(repo_root,
+                                                      tarball_filename,
+                                                      APP_revision()))
     else:
         local('cd {0}; tar czf {1} .'.format(repo_root, tarball_filename))
 
@@ -547,10 +546,11 @@ def install_and_check():
 
 def upload_to(host, filename, port=7777):
     """
-    Simple method to upload a file into APP
+    Simple method to upload a file into NGAS
     """
     with contextlib.closing(httplib.HTTPConnection(host, port)) as conn:
-        conn.putrequest('POST', '/QARCHIVE?filename=%s' % (urllib2.quote(os.path.basename(filename)),) )
+        conn.putrequest('POST', '/QARCHIVE?filename=%s' % (
+            urllib2.quote(os.path.basename(filename)),))
         conn.putheader('Content-Length', os.stat(filename).st_size)
         conn.endheaders()
         with open(filename) as f:
@@ -558,6 +558,8 @@ def upload_to(host, filename, port=7777):
                 conn.send(data)
         r = conn.getresponse()
         if r.status != httplib.OK:
-            raise Exception("Error while QARCHIVE-ing %s to %s:%d:\nStatus: %d\n%s\n\n%s" % (filename, conn.host, conn.port, r.status, r.msg, r.read()))
+            raise Exception("Error while QARCHIVE-ing %s to %s:%d:\nStatus: "
+                            "%d\n%s\n\n%s" % (filename, conn.host, conn.port,
+                                              r.status, r.msg, r.read()))
         else:
             success("{0} successfully archived to {1}!".format(filename, host))
