@@ -129,8 +129,8 @@ def APP_revision():
 
 def extra_python_packages():
     key = 'APP_EXTRA_PYTHON_PACKAGES'
-    if key in env:
-        return env.pkgs[key].split(',')
+    if key in env.pkgs:
+        return env.pkgs[key]
     return None
 
 
