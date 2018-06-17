@@ -84,17 +84,17 @@ fi
 
 # First things first, check that we have python installed
 # We default to whatever is in the path if not specified
-PYTHON_EXEC=${PYTHON_EXEC:-python}
+PYTHON_EXEC=${PYTHON_EXEC:-python36}
 if [[ -z "$(command -v ${PYTHON_EXEC} 2> /dev/null)" ]]
 then
-	error "No Python found in this system, install Python 2.7"
+	error "No Python found in this system, install Python 3.6"
 fi
 
 # Check that the python version is correct
 pythonVersion=$(${PYTHON_EXEC} -V 2>&1)
-if [[ ! "$pythonVersion" == *"2.7"* ]]
+if [[ ! "$pythonVersion" == *"3.6"* ]]
 then
-	error "Python 2.7 needed, found: $pythonVersion"
+	error "Python 3.6 needed, found: $pythonVersion"
 fi
 
 # Check if we already have virtualenv
