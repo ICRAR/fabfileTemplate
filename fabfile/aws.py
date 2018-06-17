@@ -33,27 +33,26 @@ from fabric.state import env
 from fabric.tasks import execute
 from fabric.utils import puts, abort, fastprint
 
-from APPspecific import APP_revision, APP_user
-from utils import default_if_empty, whatsmyip, check_ssh, \
-    key_filename
+from APPspecific import APP_revision, APP_user, APP_name
+from utils import default_if_empty, whatsmyip, check_ssh, key_filename
 
 # Don't re-export the tasks imported from other modules
 __all__ = ['create_aws_instances', 'list_instances', 'terminate']
 
 # Available known AMI IDs
 AMI_IDs = {
-           'Amazon':'ami-7c807d14',
-           'Amazon-hvm': 'ami-60b6c60a',
+           'Amazon': 'ami-6178a31e',
+           'Amazon-hvm': 'ami-5679a229',
            'CentOS': 'ami-8997afe0',
-           'Old_CentOS':'ami-aecd60c7',
-           'SLES-SP2':'ami-e8084981',
-           'SLES-SP3':'ami-c08fcba8'
+           'Old_CentOS': 'ami-aecd60c7',
+           'SLES-SP2': 'ami-e8084981',
+           'SLES-SP3': 'ami-c08fcba8'
            }
 
 # Instance creation defaults
 DEFAULT_AWS_AMI_NAME = 'Amazon'
 DEFAULT_AWS_INSTANCES = 1
-DEFAULT_AWS_INSTANCE_NAME_TPL = 'APP_{0}' # gets formatted with the git branch name
+DEFAULT_AWS_INSTANCE_NAME_TPL = '{0}'.format(APP_name()+'_{0}') # gets formatted with the git branch name
 DEFAULT_AWS_INSTANCE_TYPE = 't1.micro'
 DEFAULT_AWS_KEY_NAME = 'icrar_ngas'
 DEFAULT_AWS_SEC_GROUP = 'NGAS' # Security group allows SSH and other ports
@@ -229,8 +228,9 @@ def create_aws_instances():
     puts('Started the instance(s) now waiting for the SSH daemon to start.')
     execute(check_ssh, timeout=300)
 
+
 @task
-def list_instances():
+def list_instances(name=None):
     """
     Lists the EC2 instances associated to the user's amazon key
     """
@@ -238,11 +238,10 @@ def list_instances():
     res = conn.get_all_instances()
     for r in res:
         for inst in r.instances:
-            print
-            print_instance(inst)
-            print
+            print_instance(inst, name=name)
 
-def print_instance(inst):
+
+def print_instance(inst, name=None):
     inst_id    = inst.id
     inst_state = inst.state
     inst_type  = inst.instance_type
@@ -251,18 +250,42 @@ def print_instance(inst):
     l_time     = inst.launch_time
     key_name   = inst.key_name
     nuser = None
-    puts('Instance {0} ({1}) is {2}'.format(inst_id, inst_type, color_ec2state(inst_state)))
+    outdict = {}
+    outfl = True    # Controls whether info is printed
+
+    outlist = [u'Name', u'Instance', u'Launch time', u'APP User', u'Connect',
+               u'Terminate']  # defines the print order
+    outdict['Instance'] = '{0} ({1}) is {2}'.format(inst_id, inst_type,
+                                                    color_ec2state(inst_state
+                                                                   ))
     for k, val in tagdict.items():
         if k == 'Name':
             val = blue(val)
-        elif k == 'APP User':
-            nuser = val
-        puts('{0}: {1}'.format(k,val))
+            if name is not None:
+                name = unicode(name)
+                if val.find(name) == -1:
+                    outfl = False
+                else:
+                    puts(name)
+        outdict[k] = val
+    if u'APP User' in outdict.keys():
+        nuser = outdict[u'APP User']
+    if u'NGAS User' in outdict.keys():
+        nuser = outdict[u'NGAS User']
     if inst_state == 'running':
         ssh_user = ' -l%s' % (nuser) if nuser else ''
-        puts("Connect:   ssh -i ~/.ssh/{0}.pem {1}{2}".format(key_name, pub_name, ssh_user))
-        puts("Terminate: fab aws.terminate:instance_id={0}".format(inst_id))
-    print 'Launch time: {0}'.format(l_time)
+        outdict['Connect'] = 'ssh -i ~/.ssh/{0}.pem {1}{2}'.format(key_name,
+                                                                   pub_name,
+                                                                   ssh_user)
+        outdict['Terminate'] = 'fab aws.terminate:instance_id={0}'.format(
+            inst_id)
+        outdict['Launch time'] = '{0}'.format(l_time)
+    if outfl:
+        for k in outlist:
+            if outdict.has_key(k):
+                puts("{0}: {1}".format(k, outdict[k]))
+        puts('')
+
 
 def color_ec2state(state):
     if state == 'running':
@@ -272,6 +295,7 @@ def color_ec2state(state):
     elif state == 'shutting-down':
         return yellow(state)
     return state
+
 
 @task
 def terminate(instance_id):

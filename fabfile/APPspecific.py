@@ -34,11 +34,14 @@ import tempfile
 import urllib2
 
 from fabric.context_managers import settings, cd
-from fabric.contrib.files import exists, sed
+from fabric.contrib.files import exists
 from fabric.decorators import task, parallel
 from fabric.operations import local, put
 from fabric.state import env
 from fabric.utils import abort
+
+from config import APP, APP_DATAFILES, APP_INSTALL_DIR_NAME, APP_PYTHON_VERSION
+from config import APP_ROOT_DIR_NAME, APP_SRC_DIR_NAME, APP_USER
 
 from pkgmgr import install_system_packages, check_brew_port, check_brew_cellar
 from system import check_dir, download, check_command, \
@@ -56,117 +59,10 @@ __all__ = [
     'copy_sources',
 ]
 
-# The following variable will define the Application name as well as directory
-# structure and a number of other application specific names.
-APP = 'APP'
 
-# The username to use by default on remote hosts where APP is being installed
-# This user might be different from the initial username used to connect to the
-# remote host, in which case it will be created first
-APP_USER = APP.lower()
-
-# Name of the directory where APP sources will be expanded on the target host
-# This is relative to the APP_USER home directory
-APP_SRC_DIR_NAME = APP.lower() + '_src'
-
-# Name of the directory where APP root directory will be created
-# This is relative to the APP_USER home directory
-APP_ROOT_DIR_NAME = 'APP'
-
-# Name of the directory where a virtualenv will be created to host the APP
-# software installation, plus the installation of all its related software
-# This is relative to the APP_USER home directory
-APP_INSTALL_DIR_NAME = APP.lower() + '_rt'
-
-# NOTE: Make sure to modify the following lists to meet the requirements for
-# the application.
-
-
-# Alpha-sorted packages per package manager
-env.pkgs = {
-            'YUM_PACKAGES': [
-                     'autoconf',
-                     'bzip2-devel',
-                     'cfitsio-devel',
-                     'db4-devel',
-                     'gcc',
-                     'gdbm-devel',
-                     'git',
-                     'libdb-devel',
-                     'libtool',
-                     'make',
-                     'openssl-devel',
-                     'patch',
-                     'postfix',
-                     'postgresql-devel',
-                     'python27-devel',
-                     'python-devel',
-                     'readline-devel',
-                     'sqlite-devel',
-                     'tar',
-                     'wget',
-                     'zlib-devel',
-                     ],
-            'APT_PACKAGES': [
-                    'autoconf',
-                    'libcfitsio-dev',
-                    'libdb5.3-dev',
-                    'libdb-dev',
-                    'libgdbm-dev',
-                    'libreadline-dev',
-                    'libsqlite3-dev',
-                    'libssl-dev',
-                    'libtool',
-                    'libzlcore-dev',
-                    'make',
-                    'patch',
-                    'postgresql-client',
-                    'python-dev',
-                    'python-setuptools',
-                    'tar',
-                    'sqlite3',
-                    'wget',
-                    'zlib1g-dbg',
-                    'zlib1g-dev',
-                    ],
-            'SLES_PACKAGES': [
-                    'autoconf',
-                    'automake',
-                    'gcc',
-                    'gdbm-devel',
-                    'git',
-                    'libdb-4_5',
-                    'libdb-4_5-devel',
-                    'libtool',
-                    'make',
-                    'openssl',
-                    'patch',
-                    'python-devel',
-                    'python-html5lib',
-                    'python-pyOpenSSL',
-                    'python-xml',
-                    'postfix',
-                    'postgresql-devel',
-                    'sqlite3-devel',
-                    'wget',
-                    'zlib',
-                    'zlib-devel',
-                    ],
-            'BREW_PACKAGES': [
-                    'autoconf',
-                    'automake',
-                    'berkeley-db',
-                    'libtool',
-                    'wget',
-                    ],
-            'PORT_PACKAGES': [
-                    'autoconf',
-                    'automake',
-                    'db60',
-                    'libtool',
-                    'wget',
-                    ]
-        }
+def APP_name():
+    default_if_empty(env, 'APP_NAME', APP)
+    return env.APP_NAME
 
 
 def APP_user():
@@ -234,7 +130,7 @@ def APP_revision():
 def extra_python_packages():
     key = 'APP_EXTRA_PYTHON_PACKAGES'
     if key in env:
-        return env[key].split(',')
+        return env.pkgs[key].split(',')
     return None
 
 
@@ -283,7 +179,7 @@ def virtualenv_setup():
     # It already handles the download automatically if no virtualenv command is
     # found in the system, and also allows to specify a python executable path
     with cd(APP_source_dir()):
-        run("./create_venv.sh -p {0} {1}".format(ppath, APPInstallDir))
+        run("fabfile/create_venv.sh -p {0} {1}".format(ppath, APPInstallDir))
 
     # Download this particular certifcate; otherwise pip complains
     # in some platforms
@@ -341,45 +237,10 @@ def install_user_profile():
 
 def APP_build_cmd(no_client, develop, no_doc_dependencies):
 
-    # The installation of the bsddb package (needed by ngamsCore) is in
-    # particular difficult because it requires some flags to be passed on
-    # (particularly if using MacOSX's port
-    # >>>> NOTE: This function will need heavy customisation <<<<<<
-    # >>>> It is ignored for now <<<<<
     build_cmd = []
-    # >>>> remove next line once ajusted <<<<
-    return ''.join(build_cmd)
-    # <<<<<<
-    linux_flavor = get_linux_flavor()
-    if linux_flavor == 'Darwin':
-        pkgmgr = check_brew_port()
-        if pkgmgr == 'brew':
-            cellardir = check_brew_cellar()
-            db_version = run('ls -tr1 {0}/berkeley-db'.
-                             format(cellardir)).split()[-1]
-            db_dir = '{0}/berkeley-db/{1}'.format(cellardir, db_version)
-            build_cmd.append('BERKELEYDB_DIR={0}'.format(db_dir))
-            if not no_client:
-                build_cmd.append('CFLAGS=-I{0}/include'.format(db_dir))
-                build_cmd.append('LDFLAGS=-L{0}/lib'.format(db_dir))
-        else:
-            incdir = MACPORT_DIR + '/include/db60'
-            libdir = MACPORT_DIR + '/lib/db60'
-            build_cmd.append('BERKELEYDB_INCDIR=' + incdir)
-            build_cmd.append('BERKELEYDB_LIBDIR=' + libdir)
-            if not no_client:
-                build_cmd.append('CFLAGS=-I' + incdir)
-                build_cmd.append('LDFLAGS=-L' + libdir)
-        build_cmd.append(
-            'YES_I_HAVE_THE_RIGHT_TO_USE_THIS_BERKELEY_DB_VERSION=1')
 
-    build_cmd.append('./build.sh')
-    if not no_client:
-        build_cmd.append("-c")
-    if develop:
-        build_cmd.append("-d")
-    if not no_doc_dependencies:
-        build_cmd.append('-D')
+    build_cmd.append('cd %s ;' % APP_source_dir())
+    build_cmd.append('pip install .')
 
     return ' '.join(build_cmd)
 
@@ -398,28 +259,27 @@ def build_APP():
         print build_cmd
         if build_cmd != '':
             virtualenv(build_cmd)
-    success("APP built and installed")
+    success("{0} built and installed".format(APP))
 
 
 def prepare_APP_data_dir():
     """Creates a new APP root directory"""
 
-    info('Preparing APP root directory')
+    info('Preparing {0} root directory'.format(APP))
     nrd = APP_root_dir()
-    tgt_cfg = os.path.join(nrd, 'cfg', 'ngamsServer.conf')
+    # tgt_cfg = os.path.join(nrd, 'cfg', 'ngamsServer.conf')
+    tgt_cfg = None
+    res = run('mkdir {0}'.format(nrd))
     with cd(APP_source_dir()):
-
-        cmd = ['./prepare_APP_root.sh']
-        if APP_overwrite_root():
-            cmd.append('-f')
-        cmd.append(nrd)
-        res = run(' '.join(cmd), quiet=True)
+        for d in APP_DATAFILES:
+            res = run('scp -r {0} {1}/.'.format(d, nrd), quiet=True)
         if res.succeeded:
-            success("APP data directory ready")
+            success("{0} data directory ready".format(APP))
             return tgt_cfg
 
     # Deal with the errors here
-    error = 'APP root directory preparation under {0} failed.\n'.format(nrd)
+    error = '{0} root directory preparation under {1} failed.\n'.format(APP,
+                                                                        nrd)
     if res.return_code == 2:
         error = (nrd + " already exists. Specify APP_OVERWRITE_ROOT to "
                  "overwrite, or a different APP_ROOT_DIR location")
@@ -439,28 +299,27 @@ def install_sysv_init_script(nsd, nuser, cfgfile):
 
     # Different distros place it in different directories
     # The init script is prepared for both
-    opt_file = '/etc/sysconfig/APP'
+    opt_file = '/etc/sysconfig/{0}'.format(APP_name())
     if get_linux_flavor() in ('Ubuntu', 'Debian'):
-        opt_file = '/etc/default/APP'
+        opt_file = '/etc/default/{0}'.format(APP_name())
 
     # Script file installation
-    sudo('cp %s/fabfile/init/sysv/APP-server /etc/init.d/' % (nsd,))
-    sudo('chmod 755 /etc/init.d/APP-server')
+    sudo('cp {0}/fabfile/init/sysv/{1}-server /etc/init.d/'.format(nsd,
+                                                                   APP_name()))
+    sudo('chmod 755 /etc/init.d/{0}-server'.format(APP_name()))
 
     # Options file installation and edition
-    sudo('cp %s/fabfile/init/sysv/APP-server.options %s' % (nsd, opt_file))
+    sudo('cp {0}/fabfile/init/sysv/APP-server.options {1}'.format(nsd,
+                                                                  opt_file))
     sudo('chmod 644 %s' % (opt_file,))
-    sed(opt_file, '^USER=.*', 'USER=%s' % (nuser,), use_sudo=True, backup='')
-    sed(opt_file, '^CFGFILE=.*', 'CFGFILE=%s' % (cfgfile,), use_sudo=True,
-        backup='')
 
     # Enabling init file on boot
     if check_command('update-rc.d'):
-        sudo('update-rc.d APP-server defaults')
+        sudo('update-rc.d {0}-server defaults'.format(APP_name()))
     else:
-        sudo('chkconfig --add APP-server')
+        sudo('chkconfig --add {0}-server'.format(APP_name()))
 
-    success("APP init script installed")
+    success("{0} init script installed".format(APP_name()))
 
 
 def create_sources_tarball(tarball_filename):
@@ -493,7 +352,7 @@ def copy_sources():
 
     # transfer the tar file if not local
     if not is_localhost():
-        target_tarfile = '/tmp/APP_tmp.tar'
+        target_tarfile = '/tmp/{0}_tmp.tar'.format(APP_name())
         put(local_file, target_tarfile)
     else:
         target_tarfile = local_file
@@ -509,7 +368,7 @@ def copy_sources():
     # Cleaning up now
     local('rm {0}'.format(local_file))
 
-    success("APP sources copied")
+    success("{0} sources copied".format(APP_name()))
 
 
 @parallel

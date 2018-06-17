@@ -229,9 +229,6 @@ def download(url, target=None, root=False):
     return target
 
 
-APP_PYTHON_VERSION = '2.7'
-APP_PYTHON_URL = 'https://www.python.org/ftp/python/2.7.14/Python-2.7.14.tgz'
-
 @task
 def check_python():
     """
@@ -258,7 +255,7 @@ def python_setup(ppath):
         run('make >> /tmp/py_install.log 2>&1;')
         puts(green('Installing Python.....'))
         run('make install >> /tmp/py_install.log 2>&1')
-        ppath = '{0}/bin/python{1}'.format(ppath,APP_PYTHON_VERSION)
+        ppath = '{0}/bin/python{1}'.format(ppath, APP_PYTHON_VERSION)
     return ppath
 
 def get_fab_public_key():

@@ -209,7 +209,7 @@ def info(msg, with_stars=False):
 
 def append_desc(t):
     tname = t.__name__
-    desc = os.path.join(repo_root(), 'doc', '%s_desc.rst' % (tname,))
+    desc = os.path.join(repo_root(), 'fabfile', 'doc', '%s_desc.rst' % (tname,))
     with open(desc, "rt") as f:
         t.__doc__ += "\n\n" + f.read()
     return t
