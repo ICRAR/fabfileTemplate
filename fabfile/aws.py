@@ -223,7 +223,6 @@ def create_aws_instances():
         env.user = 'root'
     else:
         env.user = 'ec2-user'
-
     # Instances have started, but are not usable yet, make sure SSH has started
     puts('Started the instance(s) now waiting for the SSH daemon to start.')
     execute(check_ssh, timeout=300)
