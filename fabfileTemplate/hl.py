@@ -36,8 +36,8 @@ from dockerContainer import setup_container, create_final_image
 from utils import repo_root, check_ssh, append_desc
 from system import check_sudo
 
-from APPspecific import install_and_check, prepare_install_and_check
-from APPspecific import create_sources_tarball, upload_to, APP_revision
+from APPcommon import install_and_check, prepare_install_and_check
+from APPcommon import create_sources_tarball, upload_to, APP_revision
 
 
 # Don't re-export the tasks imported from other modules, only ours
@@ -47,7 +47,7 @@ __all__ = ['user_deploy', 'operations_deploy', 'aws_deploy', 'docker_image',
 
 @task
 @parallel
-@append_desc
+#@append_desc
 def user_deploy():
     """Compiles and installs APP in a user-owned directory."""
     check_ssh()
@@ -56,7 +56,7 @@ def user_deploy():
 
 @task
 @parallel
-@append_desc
+#@append_desc
 def operations_deploy():
     """Performs a system-level setup on a host and installs APP on it"""
     check_ssh()
@@ -65,7 +65,7 @@ def operations_deploy():
 
 
 @task
-@append_desc
+#@append_desc
 def aws_deploy():
     """Deploy APP on fresh AWS EC2 instances."""
     # This task doesn't have @parallel because its initial work
@@ -77,7 +77,7 @@ def aws_deploy():
 
 
 @task
-@append_desc
+#@append_desc
 def docker_image():
     """ Create a Docker image with an APP installation."""
 

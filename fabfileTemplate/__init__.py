@@ -27,8 +27,8 @@ For a detailed description of a task run "fab -d <task>"
 End users will likely use the hl.operations_deploy or hl.user_deploy tasks,
 Other tasks, including lower-level tasks, can also be invoked.
 """
-import aws
+# import aws
 import hl
-import APPspecific
-import pkgmgr
-import system
+# import APPcommon
+# import pkgmgr
+# import system

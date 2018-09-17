@@ -20,7 +20,7 @@
 #    MA 02111-1307  USA
 #
 """
-Main module where application-specific tasks are carried out, like copying its
+Main module where application-common tasks are carried out, like copying its
 sources, installing it and making sure it works after starting it.
 
 NOTE: This requires modifications for the specific application where this
@@ -34,14 +34,12 @@ import tempfile
 import urllib2
 
 from fabric.context_managers import settings, cd
-from fabric.contrib.files import exists
+from fabric.contrib.files import exists, sed
 from fabric.decorators import task, parallel
 from fabric.operations import local, put
 from fabric.state import env
 from fabric.utils import abort
-
-from config import APP, APP_DATAFILES, APP_INSTALL_DIR_NAME, APP_PYTHON_VERSION
-from config import APP_ROOT_DIR_NAME, APP_SRC_DIR_NAME, APP_USER
+from fabric.colors import red
 
 from pkgmgr import install_system_packages, check_brew_port, check_brew_cellar
 from system import check_dir, download, check_command, \
@@ -53,16 +51,40 @@ from utils import is_localhost, home, default_if_empty, sudo, run, success,\
 # Don't re-export the tasks imported from other modules, only the ones defined
 # here
 __all__ = [
-    'start_APP_and_check_status',
     'virtualenv_setup',
     'install_user_profile',
     'copy_sources',
 ]
 
+APP_NAME_DEFAULT = 'DEFAULT'
+# # The username to use by default on remote hosts where APP is being installed
+# # This user might be different from the initial username used to connect to the
+# # remote host, in which case it will be created first
+APP_USER = env.APP_NAME.lower()
+
+# # Name of the directory where APP sources will be expanded on the target host
+# # This is relative to the APP_USER home directory
+APP_SRC_DIR_NAME = env.APP_NAME.lower() + '_src'
+
+# # Name of the directory where APP root directory will be created
+# # This is relative to the APP_USER home directory
+APP_ROOT_DIR_NAME = env.APP_NAME.upper()
+
+# # Name of the directory where a virtualenv will be created to host the APP
+# # software installation, plus the installation of all its related software
+# # This is relative to the APP_USER home directory
+APP_INSTALL_DIR_NAME = env.APP_NAME.lower() + '_rt'
+
+APP_REPO_ROOT_DEFAULT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 def APP_name():
-    default_if_empty(env, 'APP_NAME', APP)
+    default_if_empty(env, 'APP_NAME', APP_NAME_DEFAULT)
     return env.APP_NAME
+
+
+def APP_repo_root():
+    default_if_empty(env, 'APP_REPO_ROOT', APP_REPO_ROOT_DEFAULT)
+    return env.APP_REPO_ROOT
 
 
 def APP_user():
@@ -72,8 +94,9 @@ def APP_user():
 
 def APP_install_dir():
     key = 'APP_INSTALL_DIR'
-    if key not in env:
-        env[key] = os.path.abspath(os.path.join(home(), APP_INSTALL_DIR_NAME))
+    default_if_empty(env, 'APP_INSTALL_DIR', APP_name().lower()+'_rt')
+    if env[key].find('/') != 0: # make sure this is an absolute path
+        env[key] = os.path.abspath(os.path.join(home(), env.APP_INSTALL_DIR))
     return env[key]
 
 
@@ -90,7 +113,7 @@ def APP_use_custom_pip_cert():
 def APP_root_dir():
     key = 'APP_ROOT_DIR'
     if key not in env:
-        env[key] = os.path.abspath(os.path.join(home(), APP_ROOT_DIR_NAME))
+        env[key] = os.path.abspath(os.path.join(home(), env.APP_ROOT_DIR_NAME))
     return env[key]
 
 
@@ -102,7 +125,7 @@ def APP_overwrite_root():
 def APP_source_dir():
     key = 'APP_SRC_DIR'
     if key not in env:
-        env[key] = os.path.abspath(os.path.join(home(), APP_SRC_DIR_NAME))
+        env[key] = os.path.abspath(os.path.join(home(), env.APP_SRC_DIR_NAME))
     return env[key]
 
 
@@ -112,7 +135,7 @@ def APP_doc_dependencies():
 
 
 def has_local_git_repo():
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    repo_root = env.repo_root
     return os.path.exists(os.path.join(repo_root, '.git'))
 
 
@@ -142,20 +165,6 @@ def virtualenv(command, **kwargs):
     return run('source {0}/bin/activate && {1}'.format(nid, command), **kwargs)
 
 
-def start_APP_and_check_status(tgt_cfg):
-    """
-    Starts the APP daemon process and checks that the server is up and running
-    then it shuts down the server
-    """
-    # We sleep 2 here as it was found on Mac deployment to docker container
-    # that the shell would exit before the APPDaemon could detach, thus
-    # resulting in no startup self.
-    #
-    # Please replace following line with something meaningful
-    # virtualenv('ngamsDaemon start -cfg {0} && sleep 2'.format(tgt_cfg))
-    pass
-
-
 @task
 def virtualenv_setup():
     """
@@ -179,7 +188,7 @@ def virtualenv_setup():
     # It already handles the download automatically if no virtualenv command is
     # found in the system, and also allows to specify a python executable path
     with cd(APP_source_dir()):
-        run("fabfile/create_venv.sh -p {0} {1}".format(ppath, APPInstallDir))
+        run("./create_venv.sh -p {0} {1}".format(ppath, APPInstallDir))
 
     # Download this particular certifcate; otherwise pip complains
     # in some platforms
@@ -203,128 +212,9 @@ def virtualenv_setup():
 
     success("Virtualenv setup completed")
 
-
-@task
-def install_user_profile():
-    """
-    Put the activation of the virtualenv into the login profile of the user
-    unless the APP_DONT_MODIFY_BASHPROFILE environment variable is defined
-
-    NOTE: This will be executed for the user running APP.
-    """
-    if run('echo $APP_DONT_MODIFY_BASHPROFILE') or \
-       'APP_NO_BASH_PROFILE' in env:
-        return
-
-    nid = APP_install_dir()
-    nrd = APP_root_dir()
-    with cd("~"):
-        if not exists(".bash_profile_orig"):
-            run('cp .bash_profile .bash_profile_orig', warn_only=True)
-        else:
-            run('cp .bash_profile_orig .bash_profile')
-
-        script = ('if [ -f "{0}/bin/activate" ]'.format(nid),
-                  'then',
-                  '   source "{0}/bin/activate"'.format(nid),
-                  'fi',
-                  'export APP_PREFIX="{0}"'.format(nrd))
-
-        run("echo '{0}' >> .bash_profile".format('\n'.join(script)))
-
-    success("~/.bash_profile edited for automatic virtualenv sourcing")
-
-
-def APP_build_cmd(no_client, develop, no_doc_dependencies):
-
-    build_cmd = []
-
-    build_cmd.append('cd %s ;' % APP_source_dir())
-    build_cmd.append('pip install .')
-
-    return ' '.join(build_cmd)
-
-
-def build_APP():
-    """
-    Builds and installs APP into the target virtualenv.
-    """
-    with cd(APP_source_dir()):
-        extra_pkgs = extra_python_packages()
-        if extra_pkgs:
-            virtualenv('pip install %s' % ' '.join(extra_pkgs))
-        develop = False
-        no_doc_dependencies = APP_doc_dependencies()
-        build_cmd = APP_build_cmd(False, develop, no_doc_dependencies)
-        print build_cmd
-        if build_cmd != '':
-            virtualenv(build_cmd)
-    success("{0} built and installed".format(APP))
-
-
-def prepare_APP_data_dir():
-    """Creates a new APP root directory"""
-
-    info('Preparing {0} root directory'.format(APP))
-    nrd = APP_root_dir()
-    # tgt_cfg = os.path.join(nrd, 'cfg', 'ngamsServer.conf')
-    tgt_cfg = None
-    res = run('mkdir {0}'.format(nrd))
-    with cd(APP_source_dir()):
-        for d in APP_DATAFILES:
-            res = run('scp -r {0} {1}/.'.format(d, nrd), quiet=True)
-        if res.succeeded:
-            success("{0} data directory ready".format(APP))
-            return tgt_cfg
-
-    # Deal with the errors here
-    error = '{0} root directory preparation under {1} failed.\n'.format(APP,
-                                                                        nrd)
-    if res.return_code == 2:
-        error = (nrd + " already exists. Specify APP_OVERWRITE_ROOT to "
-                 "overwrite, or a different APP_ROOT_DIR location")
-    else:
-        error = res
-    abort(error)
-
-
-def install_sysv_init_script(nsd, nuser, cfgfile):
-    """
-    Install the APP init script for an operational deployment.
-    The init script is an old System V init system.
-    In the presence of a systemd-enabled system we use the update-rc.d tool
-    to enable the script as part of systemd (instead of the System V chkconfig
-    tool which we use instead). The script is prepared to deal with both tools.
-    """
-
-    # Different distros place it in different directories
-    # The init script is prepared for both
-    opt_file = '/etc/sysconfig/{0}'.format(APP_name())
-    if get_linux_flavor() in ('Ubuntu', 'Debian'):
-        opt_file = '/etc/default/{0}'.format(APP_name())
-
-    # Script file installation
-    sudo('cp {0}/fabfile/init/sysv/{1}-server /etc/init.d/'.format(nsd,
-                                                                   APP_name()))
-    sudo('chmod 755 /etc/init.d/{0}-server'.format(APP_name()))
-
-    # Options file installation and edition
-    sudo('cp {0}/fabfile/init/sysv/APP-server.options {1}'.format(nsd,
-                                                                  opt_file))
-    sudo('chmod 644 %s' % (opt_file,))
-
-    # Enabling init file on boot
-    if check_command('update-rc.d'):
-        sudo('update-rc.d {0}-server defaults'.format(APP_name()))
-    else:
-        sudo('chkconfig --add {0}-server'.format(APP_name()))
-
-    success("{0} init script installed".format(APP_name()))
-
-
 def create_sources_tarball(tarball_filename):
     # Make sure we are git-archivin'ing from the root of the repository,
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    repo_root = APP_repo_root()
     if has_local_git_repo():
         local('cd {0}; git archive -o {1} {2}'.format(repo_root,
                                                       tarball_filename,
@@ -371,10 +261,66 @@ def copy_sources():
     success("{0} sources copied".format(APP_name()))
 
 
+@task
+def install_user_profile():
+    """
+    Put the activation of the virtualenv into the login profile of the user
+    unless the APP_DONT_MODIFY_BASHPROFILE environment variable is defined
+
+    NOTE: This will be executed for the user running APP.
+    """
+    if run('echo $APP_DONT_MODIFY_BASHPROFILE') or \
+       'APP_NO_BASH_PROFILE' in env:
+        return
+
+    nid = APP_install_dir()
+    nrd = APP_root_dir()
+    with cd("~"):
+        if not exists(".bash_profile_orig"):
+            run('cp .bash_profile .bash_profile_orig', warn_only=True)
+        else:
+            run('cp .bash_profile_orig .bash_profile')
+
+        script = ('if [ -f "{0}/bin/activate" ]'.format(nid),
+                  'then',
+                  '   source "{0}/bin/activate"'.format(nid),
+                  'fi',
+                  'export APP_PREFIX="{0}"'.format(nrd))
+
+        run("echo '{0}' >> .bash_profile".format('\n'.join(script)))
+
+    success("~/.bash_profile edited for automatic virtualenv sourcing")
+
+
+def prepare_APP_data_dir():
+    """Creates a new APP root directory"""
+
+    info('Preparing APP root directory')
+    nrd = APP_root_dir()
+    # tgt_cfg = os.path.join(nrd, 'cfg', 'ngamsServer.conf')
+    tgt_cfg = None
+    res = run('mkdir -p {0}'.format(nrd))
+    with cd(APP_source_dir()):
+        for d in env.APP_DATAFILES:
+            res = run('scp -r {0} {1}/.'.format(d, nrd), quiet=True)
+        if res.succeeded:
+            success("APP data directory ready")
+            return tgt_cfg
+
+    # Deal with the errors here
+    error = 'APP root directory preparation under {0} failed.\n'.format(nrd)
+    if res.return_code == 2:
+        error = (nrd + " already exists. Specify APP_OVERWRITE_ROOT to "
+                 "overwrite, or a different APP_ROOT_DIR location")
+    else:
+        error = res
+    abort(error)
+
+
 @parallel
 def prepare_install_and_check():
 
-    # Install system packages and create user if necessary
+    # Install system packages, create user if necessary, install and start APP
     nuser = APP_user()
     install_system_packages()
     create_user(nuser)
@@ -384,8 +330,32 @@ def prepare_install_and_check():
     with settings(user=nuser):
         nsd, cfgfile = install_and_check()
 
+def build():
+    """
+    Builds and installs APP into the target virtualenv.
+    """
+    info('Building {0}...'.format(env.APP_NAME))
+    with cd(APP_source_dir()):
+        extra_pkgs = extra_python_packages()
+        if extra_pkgs:
+            virtualenv('pip install %s' % ' '.join(extra_pkgs))
+        else:
+            info('No extra Python packages')
+
+    with cd(APP_source_dir()):
+        build_cmd = env.build_cmd
+        info('Build command: {0}'.format(build_cmd))
+        if build_cmd != '':
+             virtualenv(build_cmd)
+    
     # Install the /etc/init.d script for automatic start
-    install_sysv_init_script(nsd, nuser, cfgfile)
+    nsd = APP_source_dir()
+    nuser = APP_user()
+    cfgfile = None  #
+    env.APP_init_install_function(nsd, nuser, cfgfile)
+    env.APP_start_check_function()
+
+    success("{0} built and installed".format(env.APP_NAME))
 
 
 @parallel
@@ -396,10 +366,9 @@ def install_and_check():
     """
     copy_sources()
     virtualenv_setup()
-    build_APP()
+    build()
     tgt_cfg = prepare_APP_data_dir()
     install_user_profile()
-    start_APP_and_check_status(tgt_cfg)
     return APP_source_dir(), tgt_cfg
 
 

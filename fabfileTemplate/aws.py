@@ -33,7 +33,7 @@ from fabric.state import env
 from fabric.tasks import execute
 from fabric.utils import puts, abort, fastprint
 
-from APPspecific import APP_revision, APP_user, APP_name
+from APPcommon import APP_revision, APP_user, APP_name
 from utils import default_if_empty, whatsmyip, check_ssh, key_filename
 
 # Don't re-export the tasks imported from other modules
@@ -91,7 +91,7 @@ def aws_create_key_pair(conn):
 
 def check_create_aws_sec_group(conn):
     """
-    Check whether the NGAS security group exists
+    Check whether the security group exists
     """
 
     default_if_empty(env, 'AWS_SEC_GROUP', DEFAULT_AWS_SEC_GROUP)
@@ -105,7 +105,7 @@ def check_create_aws_sec_group(conn):
             return sg.id
 
     # Not found, create a new one
-    ngassg = conn.create_security_group(ngas_secgroup, 'NGAS default permissions')
+    ngassg = conn.create_security_group(ngas_secgroup, '{0} default permissions'.format(APP_name()))
     ngassg.authorize('tcp', 22, 22, '0.0.0.0/0')
     ngassg.authorize('tcp', 80, 80, '0.0.0.0/0')
     ngassg.authorize('tcp', 5678, 5678, '0.0.0.0/0')

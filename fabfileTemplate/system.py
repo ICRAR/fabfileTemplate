@@ -234,7 +234,7 @@ def check_python():
     """
     Check for the existence of correct version of python
     """
-    return check_command('python{0}'.format(APP_PYTHON_VERSION))
+    return check_command('python{0}'.format(env.APP_PYTHON_VERSION))
 
 @task
 def python_setup(ppath):
@@ -243,8 +243,8 @@ def python_setup(ppath):
     If not install it from scratch in user directory.
     """
     with cd('/tmp'):
-        download(APP_PYTHON_URL)
-        base = os.path.basename(APP_PYTHON_URL)
+        download(env.APP_PYTHON_URL)
+        base = os.path.basename(env.APP_PYTHON_URL)
         pdir = os.path.splitext(base)[0]
         run('tar -xzf {0}'.format(base))
     with cd('/tmp/{0}'.format(pdir)):
@@ -255,7 +255,7 @@ def python_setup(ppath):
         run('make >> /tmp/py_install.log 2>&1;')
         puts(green('Installing Python.....'))
         run('make install >> /tmp/py_install.log 2>&1')
-        ppath = '{0}/bin/python{1}'.format(ppath, APP_PYTHON_VERSION)
+        ppath = '{0}/bin/python{1}'.format(ppath, env.APP_PYTHON_VERSION)
     return ppath
 
 def get_fab_public_key():
