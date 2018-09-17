@@ -20,15 +20,17 @@
 #    MA 02111-1307  USA
 #
 """
-Main module where application-specific tasks are carried out, like copying its
-sources, installing it and making sure it works after starting it.
-
-NOTE: This requires modifications for the specific application where this
-fabfile is used. Please make sure not to use it without those modifications.
+Main module where application-specific tasks are defined. The main procedure
+is dependent on the fabfileTemplate module.
 """
+import os
 from fabric.state import env
-from fabTemplate.utils import sudo
-from fabTemplate.system import check_command
+from fabric.colors import red
+from fabric.operations import local
+from fabric.decorators import task
+from fabric.context_managers import settings
+import urllib2
+
 
 # The following variable will define the Application name as well as directory
 # structure and a number of other application specific names.
@@ -52,10 +54,36 @@ APP_ROOT_DIR_NAME = APP.upper()
 # This is relative to the APP_USER home directory
 APP_INSTALL_DIR_NAME = APP.lower() + '_rt'
 
+# Version of Python required for the Application
+APP_PYTHON_VERSION = '2.7'
+
+# URL to download the correct Python version
+APP_PYTHON_URL = 'https://www.python.org/ftp/python/2.7.14/Python-2.7.14.tgz'
+
 # NOTE: Make sure to modify the following lists to meet the requirements for
 # the application.
-APP_DATAFILES = [
-]
+APP_DATAFILES = []
+
+# AWS specific settings
+env.AWS_PROFILE = 'NGAS'
+env.AWS_REGION = 'us-east-1'
+env.AWS_AMI_NAME = 'Amazon'
+env.AWS_INSTANCES = 1
+env.AWS_INSTANCE_TYPE = 't1.micro'
+env.AWS_KEY_NAME = 'icrar_{0}'.format(APP_USER)
+env.AWS_SEC_GROUP = 'NGAS' # Security group allows SSH and other ports
+env.AWS_SUDO_USER = 'ec2-user' # required to install init scripts.
+
+
+env.APP_NAME = APP
+env.APP_USER = APP_USER
+env.APP_INSTALL_DIR = APP_INSTALL_DIR_NAME
+env.APP_ROOT_DIR = APP_ROOT_DIR_NAME
+env.APP_SRC_DIR = APP_SRC_DIR_NAME
+env.APP_PYTHON_VERSION = APP_PYTHON_VERSION
+env.APP_PYTHON_URL = APP_PYTHON_URL
+env.APP_DATAFILES = APP_DATAFILES
+env.APP_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 # Alpha-sorted packages per package manager
 env.pkgs = {
@@ -95,8 +123,23 @@ env.pkgs = {
                     ],
         }
 
+# This dictionary defines the visible exported tasks.
+__all__ = [
+    'start_APP_and_check_status',
+]
 
-def APP_build_cmd(no_client, develop, no_doc_dependencies):
+# Set the rpository root to be relative to the location of this file.
+env.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+# >>> The following lines need to be after the definitions above!!!
+
+from fabfileTemplate.utils import sudo, info, success, default_if_empty, home
+from fabfileTemplate.system import check_command
+from fabfileTemplate.APPcommon import virtualenv, APP_doc_dependencies, APP_source_dir
+from fabfileTemplate.APPcommon import extra_python_packages, APP_user, build
+
+
+def APP_build_cmd():
 
     # The installation of the bsddb package (needed by ngamsCore) is in
     # particular difficult because it requires some flags to be passed on
@@ -110,6 +153,7 @@ def APP_build_cmd(no_client, develop, no_doc_dependencies):
 
     return ' '.join(build_cmd)
 
+
 def install_sysv_init_script(nsd, nuser, cfgfile):
     """
     Install the uwsgi init script for an operational deployment of EAGLE.
@@ -118,43 +162,44 @@ def install_sysv_init_script(nsd, nuser, cfgfile):
     to enable the script as part of systemd (instead of the System V chkconfig
     tool which we use instead). The script is prepared to deal with both tools.
     """
+    with settings(user=env.AWS_SUDO_USER):
+        # Different distros place it in different directories
+        # The init script is prepared for both
+        opt_file = '/etc/uwsgi/uwsgi.ini'
 
-    # Different distros place it in different directories
-    # The init script is prepared for both
-    opt_file = '/etc/uwsgi/uwsgi.ini'
+        # The uwsgi binary got installed into the virtualenv. Lets pull that over
+        # to the system wide folder.
+        sudo('cp {0}/bin/uwsgi /usr/local/bin/uwsgi'.format(APP_SRC_DIR_NAME))
+        sudo('chmod 755 /usr/local/bin/uwsgi')
 
-    # The uwsgi binary got installed into the virtualenv. Lets pull that over
-    # to the system wide folder.
-    sudo('cp {0}/bin/uwsgi /usr/local/bin/uwsgi'.format(APP_SRC_DIR_NAME))
-    sudo('chmod 755 /usr/local/bin/uwsgi')
+        # init file installation
+        sudo('cp {0}/fabfile/init/sysv/uwsgi /etc/init.d/'.format(APP_SRC_DIR_NAME))
+        sudo('chmod 755 /etc/init.d/uwsgi')
 
-    # init file installation
-    sudo('cp {0}/fabfile/init/sysv/uwsgi /etc/init.d/'.format(APP_SRC_DIR_NAME))
-    sudo('chmod 755 /etc/init.d/uwsgi')
+        # Options file installation and edition
+        sudo('mkdir -p /etc/uwsgi')
+        sudo('cp {0}/fabfile/init/sysv/uwsgi.ini {1}'.format(APP_SRC_DIR_NAME,
+                                                            opt_file))
+        sudo('chmod 644 {0}'.format(opt_file))
 
-    # Options file installation and edition
-    sudo('mkdir -p /etc/uwsgi')
-    sudo('cp {0}/fabfile/init/sysv/uwsgi.ini {1}'.format(APP_SRC_DIR_NAME,
-                                                         opt_file))
-    sudo('chmod 644 {0}'.format(opt_file))
+        # Enabling init file on boot
+        if check_command('update-rc.d'):
+            sudo('update-rc.d uwsgi defaults')
+        else:
+            sudo('chkconfig --add uwsgi')
 
-    # Enabling init file on boot
-    if check_command('update-rc.d'):
-        sudo('update-rc.d uwsgi defaults')
-    else:
-        sudo('chkconfig --add uwsgi')
-
-    # Now let's connect that to nginx
-    # Copy main nginx conf file
-    sudo('cp {0}/fabfile/init/sysv/nginx.conf /etc/nginx/.'.
-         format(APP_source_dir()))
-    # copy uwsgi nginx conf file
-    sudo('cp {0}/fabfile/init/sysv/eagle.conf /etc/nginx/conf.d/.'.
-         format(APP_source_dir()))
+        # Now let's connect that to nginx
+        # Copy main nginx conf file
+        sudo('cp {0}/fabfile/init/sysv/nginx.conf /etc/nginx/.'.
+            format(APP_SRC_DIR_NAME))
+        # copy uwsgi nginx conf file
+        sudo('cp {0}/fabfile/init/sysv/eagle.conf /etc/nginx/conf.d/.'.
+            format(APP_SRC_DIR_NAME))
 
     success("Init scripts installed")
 
 
+@task
 def start_APP_and_check_status():
     """
     Starts the APP daemon process and checks that the server is up and running
@@ -167,8 +212,9 @@ def start_APP_and_check_status():
     # Please replace following line with something meaningful
     # virtualenv('ngamsDaemon start -cfg {0} && sleep 2'.format(tgt_cfg))
     info('Start {0} and check'.format(APP))
-    sudo('service nginx start')
-    sudo('service uwsgi start')
+    with settings(user=env.AWS_SUDO_USER):
+        sudo('service nginx start')
+        sudo('service uwsgi start')
     try:
         u = urllib2.urlopen('http://{0}/static/html/index.html'.
                             format(env.host_string))
@@ -178,3 +224,7 @@ def start_APP_and_check_status():
     r = u.read()
     u.close()
     assert r.find('eagle-s-user-documentation') > -1, red("EAGLE NOT running")
+
+env.build_cmd = APP_build_cmd()
+env.APP_init_install_function = install_sysv_init_script
+env.APP_start_check_function = start_APP_and_check_status
