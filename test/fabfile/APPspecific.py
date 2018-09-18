@@ -28,203 +28,319 @@ from fabric.state import env
 from fabric.colors import red
 from fabric.operations import local
 from fabric.decorators import task
-from fabric.context_managers import settings
+from fabric.context_managers import settings, cd
+from fabric.contrib.files import exists, sed
+from fabric.utils import abort
 import urllib2
 
+# >>> All the settings below are kept in the special fabric environment
+# >>> dictionary called env. Don't change the names, only adjust the
+# >>> values if necessary. The most important one is env.APP.
 
 # The following variable will define the Application name as well as directory
 # structure and a number of other application specific names.
-APP = 'EAGLE'
+env.APP_NAME = 'NGAS'
 
 # The username to use by default on remote hosts where APP is being installed
 # This user might be different from the initial username used to connect to the
 # remote host, in which case it will be created first
-APP_USER = APP.lower()
+env.APP_USER = env.APP_NAME.lower()
 
 # Name of the directory where APP sources will be expanded on the target host
 # This is relative to the APP_USER home directory
-APP_SRC_DIR_NAME = APP.lower() + '_src'
+env.APP_SRC_DIR_NAME = env.APP_NAME.lower() + '_src'
 
 # Name of the directory where APP root directory will be created
 # This is relative to the APP_USER home directory
-APP_ROOT_DIR_NAME = APP.upper()
+env.APP_ROOT_DIR_NAME = env.APP_NAME.upper()
 
 # Name of the directory where a virtualenv will be created to host the APP
 # software installation, plus the installation of all its related software
 # This is relative to the APP_USER home directory
-APP_INSTALL_DIR_NAME = APP.lower() + '_rt'
+env.APP_INSTALL_DIR_NAME = env.APP_NAME.lower() + '_rt'
 
 # Version of Python required for the Application
-APP_PYTHON_VERSION = '2.7'
+env.APP_PYTHON_VERSION = '2.7'
 
 # URL to download the correct Python version
-APP_PYTHON_URL = 'https://www.python.org/ftp/python/2.7.14/Python-2.7.14.tgz'
+env.APP_PYTHON_URL = 'https://www.python.org/ftp/python/2.7.14/Python-2.7.14.tgz'
 
-# NOTE: Make sure to modify the following lists to meet the requirements for
-# the application.
-APP_DATAFILES = []
+env.APP_DATAFILES = ['NGAS']
 
-# AWS specific settings
+# >>> The following settings are only used within this APPspecific file, but may be
+# >>> passed in through the fab command line as well, which will overwrite the 
+# >>> defaults below.
+
+defaults = {
+# Do not compile C Client
+'NGAS_NO_CLIENT': False,
+
+# The type of server to configure after installation
+# Values are 'archive' and 'cache'
+'NGAS_SERVER_TYPE': 'archive',
+
+# Do not install CRC32C module
+'NGAS_NO_CRC32C': True,
+
+# Is this a development installation
+'NGAS_DEVELOP': False,
+
+# Compile the NGAS docs
+'NGAS_DOC_DEPENDENCIES': False,
+
+# Overwrite existing ROOT directory
+'NGAS_OVERWRITE_ROOT': False,
+
+# Overwrite existing installation directory
+'APP_OVERWRITE_INSTALLATION': False
+}
+
+# Boto specific settings
 env.AWS_PROFILE = 'NGAS'
 env.AWS_REGION = 'us-east-1'
 env.AWS_AMI_NAME = 'Amazon'
 env.AWS_INSTANCES = 1
 env.AWS_INSTANCE_TYPE = 't1.micro'
-env.AWS_KEY_NAME = 'icrar_{0}'.format(APP_USER)
+env.AWS_KEY_NAME = 'icrar_{0}'.format(env.APP_USER)
 env.AWS_SEC_GROUP = 'NGAS' # Security group allows SSH and other ports
 env.AWS_SUDO_USER = 'ec2-user' # required to install init scripts.
 
-
-env.APP_NAME = APP
-env.APP_USER = APP_USER
-env.APP_INSTALL_DIR = APP_INSTALL_DIR_NAME
-env.APP_ROOT_DIR = APP_ROOT_DIR_NAME
-env.APP_SRC_DIR = APP_SRC_DIR_NAME
-env.APP_PYTHON_VERSION = APP_PYTHON_VERSION
-env.APP_PYTHON_URL = APP_PYTHON_URL
-env.APP_DATAFILES = APP_DATAFILES
-env.APP_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-
-# Alpha-sorted packages per package manager
+# NOTE: Make sure to modify the following lists to meet the requirements for
+# the application.
+# Alpha-sorted packages to be installed per supported package manager
 env.pkgs = {
-            'YUM_PACKAGES': [
-                     'python27-devel',
-                     'python-devel',
-                     'readline-devel',
-                     'openssl-devel',
-                     'gcc',
-                     'nginx',
-                     ],
-            'APT_PACKAGES': [
-                    'python-dev',
-                    'python-setuptools',
-                    'tar',
-                    'wget',
-                    'gcc',
-                    'nginx',
-                    ],
-            'SLES_PACKAGES': [
-                    'python-devel',
-                    'wget',
-                    'zlib',
-                    'zlib-devel',
-                    'gcc',
-                    ],
-            'BREW_PACKAGES': [
-                    'wget',
-                    ],
-            'PORT_PACKAGES': [
-                    'wget',
-                    ],
-            'APP_EXTRA_PYTHON_PACKAGES': [
-                    'pycrypto',
-                    'sphinx',
-                    'uwsgi',
-                    ],
-        }
+            'YUM_PACKAGES' : [
+                'autoconf',
+                'bzip2-devel',
+                'cfitsio-devel',
+                'db4-devel',
+                'gcc',
+                'gdbm-devel',
+                'git',
+                'libdb-devel',
+                'libtool',
+                'make',
+                'openssl-devel',
+                'patch',
+                'postfix',
+                'postgresql-devel',
+                'python27-devel',
+                'python-devel',
+                'readline-devel',
+                'sqlite-devel',
+                'tar',
+                'wget',
+                'zlib-devel',
+            ],
+            'APT_PACKAGES' : [
+                'autoconf',
+                'libcfitsio-dev',
+                'libdb5.3-dev',
+                'libdb-dev',
+                'libgdbm-dev',
+                'libreadline-dev',
+                'libsqlite3-dev',
+                'libssl-dev',
+                'libtool',
+                'libzlcore-dev',
+                'make',
+                'patch',
+                'postgresql-client',
+                'python-dev',
+                'python-setuptools',
+                'tar',
+                'sqlite3',
+                'wget',
+                'zlib1g-dbg',
+                'zlib1g-dev',
+            ],
+            'SLES_PACKAGES' : [
+                'autoconf',
+                'automake',
+                'gcc',
+                'gdbm-devel',
+                'git',
+                'libdb-4_5',
+                'libdb-4_5-devel',
+                'libtool',
+                'make',
+                'openssl',
+                'patch',
+                'python-devel',
+                'python-html5lib',
+                'python-pyOpenSSL',
+                'python-xml',
+                'postfix',
+                'postgresql-devel',
+                'sqlite3-devel',
+                'wget',
+                'zlib',
+                'zlib-devel',
+            ],
+            'BREW_PACKAGES' : [
+                'autoconf',
+                'automake',
+                'berkeley-db@4',
+                'libtool',
+                'wget',
+            ],
+            'PORT_PACKAGES' : [
+                'autoconf',
+                'automake',
+                'db60',
+                'libtool',
+                'wget',
+            ]
+       }
 
-# This dictionary defines the visible exported tasks.
+# This dictionary defines the visible tasks available to fab.
 __all__ = [
     'start_APP_and_check_status',
 ]
 
 # Set the rpository root to be relative to the location of this file.
-env.repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+env.APP_repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 # >>> The following lines need to be after the definitions above!!!
-
-from fabfileTemplate.utils import sudo, info, success, default_if_empty, home
-from fabfileTemplate.system import check_command
+from fabfileTemplate.utils import sudo, info, success, default_if_empty, home, run
+from fabfileTemplate.utils import overwrite_defaults
+from fabfileTemplate.system import check_command, get_linux_flavor, MACPORT_DIR
 from fabfileTemplate.APPcommon import virtualenv, APP_doc_dependencies, APP_source_dir
-from fabfileTemplate.APPcommon import extra_python_packages, APP_user, build
+from fabfileTemplate.APPcommon import APP_root_dir, extra_python_packages, APP_user, build
+from fabfileTemplate.pkgmgr import check_brew_port, check_brew_cellar
 
+# get the settings from the fab environment if set on command line
+settings = overwrite_defaults(defaults)
 
 def APP_build_cmd():
 
     # The installation of the bsddb package (needed by ngamsCore) is in
     # particular difficult because it requires some flags to be passed on
     # (particularly if using MacOSX's port
-    # >>>> NOTE: This function potentially needs heavy customisation <<<<<<
     build_cmd = []
-    # linux_flavor = get_linux_flavor()
+    linux_flavor = get_linux_flavor()
+    if linux_flavor == 'Darwin':
+        pkgmgr = check_brew_port()
+        if pkgmgr == 'brew':
+            cellardir = check_brew_cellar()
+            db_version = run('ls -tr1 {0}/berkeley-db@4'.format(cellardir)).split()[-1]
+            db_dir = '{0}/berkeley-db@4/{1}'.format(cellardir, db_version)
+            build_cmd.append('BERKELEYDB_DIR={0}'.format(db_dir))
+            if not settings['NGAS_NO_CLIENT']:
+                build_cmd.append('CFLAGS=-I{0}/include'.format(db_dir))
+                build_cmd.append('LDFLAGS=-L{0}/lib'.format(db_dir))
+        else:
+            incdir = MACPORT_DIR + '/include/db60'
+            libdir = MACPORT_DIR + '/lib/db60'
+            build_cmd.append('BERKELEYDB_INCDIR=' + incdir)
+            build_cmd.append('BERKELEYDB_LIBDIR=' + libdir)
+            if not settings['NGAS_NO_CLIENT']:
+                build_cmd.append('CFLAGS=-I' + incdir)
+                build_cmd.append('LDFLAGS=-L' + libdir)
+        build_cmd.append('YES_I_HAVE_THE_RIGHT_TO_USE_THIS_BERKELEY_DB_VERSION=1')
 
-    build_cmd.append('cd {0} ;'.format(APP_SRC_DIR_NAME))
-    build_cmd.append('pip install .')
+    if settings['NGAS_NO_CRC32C']:
+        build_cmd.append('NGAS_NO_CRC32C=1')
+    build_cmd.append('./build.sh')
+    if not settings['NGAS_NO_CLIENT']:
+        build_cmd.append("-c")
+    if settings['NGAS_DEVELOP']:
+        build_cmd.append("-d")
+    if not settings['NGAS_DOC_DEPENDENCIES']:
+        build_cmd.append('-D')
 
     return ' '.join(build_cmd)
 
 
 def install_sysv_init_script(nsd, nuser, cfgfile):
     """
-    Install the uwsgi init script for an operational deployment of EAGLE.
+    Install the NGAS init script for an operational deployment.
     The init script is an old System V init system.
     In the presence of a systemd-enabled system we use the update-rc.d tool
     to enable the script as part of systemd (instead of the System V chkconfig
     tool which we use instead). The script is prepared to deal with both tools.
     """
-    with settings(user=env.AWS_SUDO_USER):
-        # Different distros place it in different directories
-        # The init script is prepared for both
-        opt_file = '/etc/uwsgi/uwsgi.ini'
 
-        # The uwsgi binary got installed into the virtualenv. Lets pull that over
-        # to the system wide folder.
-        sudo('cp {0}/bin/uwsgi /usr/local/bin/uwsgi'.format(APP_SRC_DIR_NAME))
-        sudo('chmod 755 /usr/local/bin/uwsgi')
+    # Different distros place it in different directories
+    # The init script is prepared for both
+    opt_file = '/etc/sysconfig/ngas'
+    if get_linux_flavor() in ('Ubuntu', 'Debian'):
+        opt_file = '/etc/default/ngas'
 
-        # init file installation
-        sudo('cp {0}/fabfile/init/sysv/uwsgi /etc/init.d/'.format(APP_SRC_DIR_NAME))
-        sudo('chmod 755 /etc/init.d/uwsgi')
+    # Script file installation
+    sudo('cp %s/fabfile/init/sysv/ngas-server /etc/init.d/' % (nsd,))
+    sudo('chmod 755 /etc/init.d/ngas-server')
 
-        # Options file installation and edition
-        sudo('mkdir -p /etc/uwsgi')
-        sudo('cp {0}/fabfile/init/sysv/uwsgi.ini {1}'.format(APP_SRC_DIR_NAME,
-                                                            opt_file))
-        sudo('chmod 644 {0}'.format(opt_file))
+    # Options file installation and edition
+    ntype = settings['NGAS_SERVER_TYPE']
+    sudo('cp %s/fabfile/init/sysv/ngas-server.options %s' % (nsd, opt_file))
+    sudo('chmod 644 %s' % (opt_file,))
+    sed(opt_file, '^USER=.*', 'USER=%s' % (nuser,), use_sudo=True, backup='')
+    sed(opt_file, '^CFGFILE=.*', 'CFGFILE=%s' % (cfgfile,), use_sudo=True, backup='')
+    if ntype == 'cache':
+        sed(opt_file, '^CACHE=.*', 'CACHE=YES', use_sudo=True, backup='')
+    elif ntype == 'data-mover':
+        sed(opt_file, '^DATA_MOVER=.*', 'DATA_MOVER=YES', use_sudo=True, backup='')
 
-        # Enabling init file on boot
-        if check_command('update-rc.d'):
-            sudo('update-rc.d uwsgi defaults')
-        else:
-            sudo('chkconfig --add uwsgi')
+    # Enabling init file on boot
+    if check_command('update-rc.d'):
+        sudo('update-rc.d ngas-server defaults')
+    else:
+        sudo('chkconfig --add ngas-server')
 
-        # Now let's connect that to nginx
-        # Copy main nginx conf file
-        sudo('cp {0}/fabfile/init/sysv/nginx.conf /etc/nginx/.'.
-            format(APP_SRC_DIR_NAME))
-        # copy uwsgi nginx conf file
-        sudo('cp {0}/fabfile/init/sysv/eagle.conf /etc/nginx/conf.d/.'.
-            format(APP_SRC_DIR_NAME))
-
-    success("Init scripts installed")
+    success("NGAS init script installed")
 
 
 @task
 def start_APP_and_check_status():
     """
-    Starts the APP daemon process and checks that the server is up and running
-    then it shuts down the server
+    Starts the ngamsDaemon process and checks that the server is up and running.
+    Then it shuts down the server
     """
-    # We sleep 2 here as it was found on Mac deployment to docker container
-    # that the shell would exit before the APPDaemon could detach, thus
-    # resulting in no startup self.
-    #
-    # Please replace following line with something meaningful
-    # virtualenv('ngamsDaemon start -cfg {0} && sleep 2'.format(tgt_cfg))
-    info('Start {0} and check'.format(APP))
-    with settings(user=env.AWS_SUDO_USER):
-        sudo('service nginx start')
-        sudo('service uwsgi start')
-    try:
-        u = urllib2.urlopen('http://{0}/static/html/index.html'.
-                            format(env.host_string))
-    except urllib2.URLError:
-        red("EAGLE NOT running!")
-        return
-    r = u.read()
-    u.close()
-    assert r.find('eagle-s-user-documentation') > -1, red("EAGLE NOT running")
 
-env.build_cmd = APP_build_cmd()
+    # We sleep 2 here as it was found on Mac deployment to docker container that the
+    # shell would exit before the ngasDaemon could detach, thus resulting in no startup.
+    virtualenv('ngamsDaemon start -cfg {0} && sleep 2'.format(tgt_cfg))
+    try:
+        res = virtualenv('ngamsDaemon status -cfg {0}'.format(tgt_cfg), warn_only=True)
+        if res.failed:
+            failure("Couldn't contact NGAS server after starting it. "
+                    "Check log files under %s/log/ to find out what went wrong" % ngas_source_dir(),
+                    with_stars=False)
+        else:
+            success('NGAS server started correctly :)')
+    finally:
+        info("Shutting NGAS server down now")
+        virtualenv("ngamsDaemon stop -cfg {0}".format(tgt_cfg))
+
+def prepare_ngas_data_dir():
+    """Creates a new NGAS root directory"""
+
+    info('Preparing NGAS root directory')
+    nrd = APP_root_dir()
+    tgt_cfg = os.path.join(nrd, 'cfg', 'ngamsServer.conf')
+    with cd(APP_source_dir()):
+
+        cmd = ['./prepare_ngas_root.sh']
+        if env.NGAS_OVERWRITE_ROOT:
+            cmd.append('-f')
+        cmd.append(nrd)
+        res = run(' '.join(cmd), quiet=True)
+        if res.succeeded:
+            success("NGAS data directory ready")
+            return tgt_cfg
+
+    # Deal with the errors here
+    error = 'NGAS root directory preparation under {0} failed.\n'.format(nrd)
+    if res.return_code == 2:
+        error = (nrd + " already exists. Specify NGAS_OVERWRITE_ROOT to overwrite, "
+                 "or a different NGAS_ROOT_DIR location")
+    else:
+        error = res
+    abort(error)
+
+
+env.build_cmd = APP_build_cmd
 env.APP_init_install_function = install_sysv_init_script
 env.APP_start_check_function = start_APP_and_check_status
+env.prepare_APP_data_dir = prepare_ngas_data_dir

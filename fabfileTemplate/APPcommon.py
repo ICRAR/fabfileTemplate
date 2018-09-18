@@ -83,7 +83,7 @@ def APP_name():
 
 
 def APP_repo_root():
-    default_if_empty(env, 'APP_REPO_ROOT', APP_REPO_ROOT_DEFAULT)
+    default_if_empty(env, 'APP_repo_root', APP_REPO_ROOT_DEFAULT)
     return env.APP_REPO_ROOT
 
 
@@ -102,7 +102,10 @@ def APP_install_dir():
 
 def APP_overwrite_installation():
     key = 'APP_OVERWRITE_INSTALLATION'
-    return key in env
+    if key in env:
+        if env[key] != False:
+            return True
+    return False
 
 
 def APP_use_custom_pip_cert():
@@ -135,7 +138,7 @@ def APP_doc_dependencies():
 
 
 def has_local_git_repo():
-    repo_root = env.repo_root
+    repo_root = env.APP_repo_root
     return os.path.exists(os.path.join(repo_root, '.git'))
 
 
@@ -214,7 +217,7 @@ def virtualenv_setup():
 
 def create_sources_tarball(tarball_filename):
     # Make sure we are git-archivin'ing from the root of the repository,
-    repo_root = APP_repo_root()
+    repo_root = env.APP_repo_root
     if has_local_git_repo():
         local('cd {0}; git archive -o {1} {2}'.format(repo_root,
                                                       tarball_filename,
@@ -292,29 +295,29 @@ def install_user_profile():
     success("~/.bash_profile edited for automatic virtualenv sourcing")
 
 
-def prepare_APP_data_dir():
-    """Creates a new APP root directory"""
+# def prepare_APP_data_dir():
+#     """Creates a new APP root directory"""
 
-    info('Preparing APP root directory')
-    nrd = APP_root_dir()
-    # tgt_cfg = os.path.join(nrd, 'cfg', 'ngamsServer.conf')
-    tgt_cfg = None
-    res = run('mkdir -p {0}'.format(nrd))
-    with cd(APP_source_dir()):
-        for d in env.APP_DATAFILES:
-            res = run('scp -r {0} {1}/.'.format(d, nrd), quiet=True)
-        if res.succeeded:
-            success("APP data directory ready")
-            return tgt_cfg
+#     info('Preparing APP root directory')
+#     nrd = APP_root_dir()
+#     # tgt_cfg = os.path.join(nrd, 'cfg', 'ngamsServer.conf')
+#     tgt_cfg = None
+#     res = run('mkdir -p {0}'.format(nrd))
+#     with cd(APP_source_dir()):
+#         for d in env.APP_DATAFILES:
+#             res = run('scp -r {0} {1}/.'.format(d, nrd), quiet=True)
+#         if res.succeeded:
+#             success("APP data directory ready")
+#             return tgt_cfg
 
-    # Deal with the errors here
-    error = 'APP root directory preparation under {0} failed.\n'.format(nrd)
-    if res.return_code == 2:
-        error = (nrd + " already exists. Specify APP_OVERWRITE_ROOT to "
-                 "overwrite, or a different APP_ROOT_DIR location")
-    else:
-        error = res
-    abort(error)
+#     # Deal with the errors here
+#     error = 'APP root directory preparation under {0} failed.\n'.format(nrd)
+#     if res.return_code == 2:
+#         error = (nrd + " already exists. Specify APP_OVERWRITE_ROOT to "
+#                  "overwrite, or a different APP_ROOT_DIR location")
+#     else:
+#         error = res
+#     abort(error)
 
 
 @parallel
@@ -329,6 +332,8 @@ def prepare_install_and_check():
     # Go, go, go!
     with settings(user=nuser):
         nsd, cfgfile = install_and_check()
+    env.APP_init_install_function(nsd, nuser, cfgfile)
+    env.APP_start_check_function()
 
 def build():
     """
@@ -343,7 +348,7 @@ def build():
             info('No extra Python packages')
 
     with cd(APP_source_dir()):
-        build_cmd = env.build_cmd
+        build_cmd = env.build_cmd()
         info('Build command: {0}'.format(build_cmd))
         if build_cmd != '':
              virtualenv(build_cmd)
@@ -352,8 +357,6 @@ def build():
     nsd = APP_source_dir()
     nuser = APP_user()
     cfgfile = None  #
-    env.APP_init_install_function(nsd, nuser, cfgfile)
-    env.APP_start_check_function()
 
     success("{0} built and installed".format(env.APP_NAME))
 
@@ -367,7 +370,9 @@ def install_and_check():
     copy_sources()
     virtualenv_setup()
     build()
-    tgt_cfg = prepare_APP_data_dir()
+    tgt_cfg = None
+    if 'prepare_APP_data_dir' in env:
+        tgt_cfg = env.prepare_APP_data_dir()
     install_user_profile()
     return APP_source_dir(), tgt_cfg
 

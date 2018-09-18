@@ -62,6 +62,11 @@ def default_if_empty(env, key, default):
         else:
             env[key] = default
 
+def overwrite_defaults(defaults):
+    for k in defaults.keys():
+        if k in env:
+            defaults[k] = env[k]
+    return defaults
 
 @task
 def whatsmyip():
