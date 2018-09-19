@@ -30,7 +30,7 @@ from fabric.operations import local
 from fabric.decorators import task
 from fabric.context_managers import settings, cd
 from fabric.contrib.files import exists, sed
-from fabric.utils import abort
+from fabric.utils import abort, failure
 import urllib2
 
 # >>> All the settings below are kept in the special fabric environment
@@ -292,7 +292,7 @@ def install_sysv_init_script(nsd, nuser, cfgfile):
 
 
 @task
-def start_APP_and_check_status():
+def start_APP_and_check_status(tgt_cfg):
     """
     Starts the ngamsDaemon process and checks that the server is up and running.
     Then it shuts down the server
@@ -305,7 +305,7 @@ def start_APP_and_check_status():
         res = virtualenv('ngamsDaemon status -cfg {0}'.format(tgt_cfg), warn_only=True)
         if res.failed:
             failure("Couldn't contact NGAS server after starting it. "
-                    "Check log files under %s/log/ to find out what went wrong" % ngas_source_dir(),
+                    "Check log files under %s/log/ to find out what went wrong" % APP_source_dir(),
                     with_stars=False)
         else:
             success('NGAS server started correctly :)')
