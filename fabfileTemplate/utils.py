@@ -142,7 +142,7 @@ def run(*args, **kwargs):
             puts('Executing: {0}'.format(com))
         if 'quiet' not in kwargs:
             kwargs['quiet'] = False
-        res = frun(com, **kwargs)
+        res = frun(com, pty=False, **kwargs)
     return res
 
 
@@ -151,7 +151,7 @@ def sudo(*args, **kwargs):
         com = args[0]
         com = 'unset PYTHONPATH; {0}'.format(com)
         puts('Executing: {0}'.format(com))
-    res = fsudo(com, quiet=True, **kwargs)
+    res = fsudo(com, quiet=True, pty=False, **kwargs)
     return res
 
 

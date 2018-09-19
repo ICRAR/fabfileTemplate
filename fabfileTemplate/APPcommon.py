@@ -332,8 +332,15 @@ def prepare_install_and_check():
     # Go, go, go!
     with settings(user=nuser):
         nsd, cfgfile = install_and_check()
-    env.APP_init_install_function(nsd, nuser, cfgfile)
-    env.APP_start_check_function()
+    if 'APP_init_install_function' in env:
+        env.APP_init_install_function(nsd, nuser, cfgfile)
+    else:
+        info('APP_init_install_function not defined in APPspecific')
+    if 'sysinitAPP_start_check_function' in env:
+        env.sysinitAPP_start_check_function()
+    else:
+        info('sysinitAPP_start_check_function not defined in APPspecific')
+
 
 def build():
     """
@@ -374,6 +381,10 @@ def install_and_check():
     if 'prepare_APP_data_dir' in env:
         tgt_cfg = env.prepare_APP_data_dir()
     install_user_profile()
+    if 'APP_start_check_function' in env:
+        env.APP_start_check_function()
+    else:
+        info('APP_start_check_function not defined in APPspecific')
     return APP_source_dir(), tgt_cfg
 
 
