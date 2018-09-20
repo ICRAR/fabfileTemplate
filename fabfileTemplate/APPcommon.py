@@ -163,6 +163,8 @@ def extra_python_packages():
     if key in env.pkgs:
         env.pkgs[key] += DEFAULT_PYTHON_PKGS
         return env.pkgs[key]
+    else:
+        env.pkgs[key] = DEFAULT_PYTHON_PKGS
     return None
 
 
