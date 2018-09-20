@@ -77,6 +77,11 @@ APP_INSTALL_DIR_NAME = env.APP_NAME.lower() + '_rt'
 
 APP_REPO_ROOT_DEFAULT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
+DEFAULT_PYTHON_PKGS = [
+    # Install myself into new environment
+    'git+https://github.com/ICRAR/fabfileTemplate'
+]
+
 def APP_name():
     default_if_empty(env, 'APP_NAME', APP_NAME_DEFAULT)
     return env.APP_NAME
@@ -156,6 +161,7 @@ def APP_revision():
 def extra_python_packages():
     key = 'APP_EXTRA_PYTHON_PACKAGES'
     if key in env.pkgs:
+        env.pkgs[key] += DEFAULT_PYTHON_PKGS
         return env.pkgs[key]
     return None
 
