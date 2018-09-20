@@ -91,7 +91,9 @@ with open('VERSION') as vfile:
 
 # extra Python packages go here
 install_requires = [
-                    ]
+    'fabric<2',
+    'boto'
+    ]
 
 setup(
     name='fabfileTemplate',
