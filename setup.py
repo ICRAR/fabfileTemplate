@@ -106,9 +106,7 @@ setup(
     author_email='andreas.wicenec@icrar.org',
     url='',
     license='LGPLv3',
-    # package_dir={'':'fabfileTemplate'},
-    # py_modules=find_packages(),
-    packages=find_packages(),
+    packages=['fabfileTemplate'],
     include_package_data=True,
     package_data={
         'fabfileTemplate': ['README.md', 'LICENSE'

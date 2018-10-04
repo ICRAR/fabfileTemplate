@@ -1,4 +1,9 @@
 This project represents a template for a deployment system using fabric.
-It can be used with specific applications by copying the fabfile directory
-from the test folder into your application and modifying mostly the 
-APPspecfic.py file.
+An actual implementation would first need to install this template module
+into the desired python environment using:
+
+$ pip install .
+
+Then just copy the whole fabfile directory to the top-level directory
+of the project which is intended to use this fabric installation
+mechansim and adjust the content of the file APPspecific.py
