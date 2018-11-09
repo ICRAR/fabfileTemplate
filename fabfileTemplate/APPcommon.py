@@ -201,7 +201,7 @@ def virtualenv_setup():
     script_path = os.path.dirname(os.path.realpath(__file__))+'/create_venv.sh'
     put(script_path, APP_source_dir()+'/create_venv.sh')
     with cd(APP_source_dir()):
-        run("./create_venv.sh -p {0} {1}".format(ppath, APPInstallDir))
+        run("/bin/bash create_venv.sh -p {0} {1}".format(ppath, APPInstallDir))
 
     # Download this particular certifcate; otherwise pip complains
     # in some platforms

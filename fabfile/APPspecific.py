@@ -98,6 +98,7 @@ env.pkgs = {
                     'wget',
                     'tar',
                     'gcc',
+                    'git',
                       ],
             'APT_PACKAGES': [
                     'tar',
