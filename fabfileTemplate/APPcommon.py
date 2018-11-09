@@ -32,6 +32,7 @@ import httplib
 import os
 import tempfile
 import urllib2
+import inspect
 
 from fabric.context_managers import settings, cd
 from fabric.contrib.files import exists, sed
@@ -198,6 +199,8 @@ def virtualenv_setup():
     # Use our create_venv.sh script to create the virtualenv
     # It already handles the download automatically if no virtualenv command is
     # found in the system, and also allows to specify a python executable path
+    script_path = inspect.getsourcefile(fabfileTemplate).split('/__')[0]+'/create_venv.sh'
+    put(script_path, APP_source_dir()+'/create_venv.sh')
     with cd(APP_source_dir()):
         run("./create_venv.sh -p {0} {1}".format(ppath, APPInstallDir))
 
