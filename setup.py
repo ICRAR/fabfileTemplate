@@ -111,7 +111,8 @@ setup(
     package_data={
         'fabfileTemplate': ['README.md', 'LICENSE'
         'VERSION',
-        'prepare_APP_root.sh'],
+        'prepare_APP_root.sh',
+        'create_venv.sh'],
      },
     dependency_links=['http://github.com/ICRAR/daliuge/tarball/master#egg=daliuge-1.0'],
     install_requires=install_requires,

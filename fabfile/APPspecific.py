@@ -43,7 +43,7 @@ import urllib2
 
 # The following variable will define the Application name as well as directory
 # structure and a number of other application specific names.
-env.APP_NAME = 'TEMPLATE'  ####<<<< modify this
+env.APP_NAME = 'TEMPLATE'
 
 # The username to use by default on remote hosts where APP is being installed
 # This user might be different from the initial username used to connect to the
@@ -76,13 +76,19 @@ env.APP_DATAFILES = []
 
 defaults = {}
 
-# AWS specific settings
+### >>> The following settings need to reflect your AWS environment settings.
+### >>> Please refer to the AWS API documentation to see how this is working
+### >>> 
+## AWS user specific settings
 env.AWS_PROFILE = 'NGAS'
+env.AWS_KEY_NAME = 'icrar_{0}'.format(env.APP_USER)
+
+# These AWS settings are generic and should work for any user, but please make
+# sure that the instance_type is appropriate.
+env.AWS_INSTANCE_TYPE = 't1.micro'
 env.AWS_REGION = 'us-east-1'
 env.AWS_AMI_NAME = 'Amazon'
 env.AWS_INSTANCES = 1
-env.AWS_INSTANCE_TYPE = 't1.micro'
-env.AWS_KEY_NAME = 'icrar_{0}'.format(env.APP_USER)
 env.AWS_SEC_GROUP = env.APP_NAME.upper() # Security group allows SSH and other ports
 env.AWS_SUDO_USER = 'ec2-user' # required to install init scripts.
 
@@ -211,10 +217,10 @@ def install_sysv_init_script(nsd, nuser, cfgfile):
 @task
 @parallel
 def cleanup():
-    run('rm -rf daliuge_*')
-    run('rm -rf DALIUGE')
-    run('if [ -f .bash_profile.orig ]; then mv .bash_profile.orig .bash_profile; fi')
-
+    ###>>> 
+    # Provide the actual implementation here if required.
+    ###<<<
+    pass
 
 env.build_cmd = APP_build_cmd
 env.APP_init_install_function = install_sysv_init_script
