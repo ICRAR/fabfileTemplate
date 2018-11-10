@@ -92,7 +92,7 @@ fi
 
 # Check that the python version is correct
 pythonVersion=$(${PYTHON_EXEC} -V 2>&1)
-if [[ ! "$pythonVersion" == *"3.6"* ]]
+if [[ "$pythonVersion" < "Python 3.6"* ]]
 then
 	error "Python 3.6 needed, found: $pythonVersion"
 fi
