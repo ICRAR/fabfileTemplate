@@ -125,7 +125,7 @@ def get_linux_flavor():
 
     # Try python
     if not linux_flavor and check_command('python'):
-        lf = run("python -c 'import platform; print platform.linux_distribution()[0]'")
+        lf = run("python -c 'import platform; print(platform.linux_distribution()[0])'")
         if lf:
             linux_flavor = lf.split()[0]
 
