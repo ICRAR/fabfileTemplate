@@ -65,7 +65,8 @@ def add_public_ssh_key(cont):
     public_key = get_fab_public_key()
     if not public_key:
         private, public_key = generate_key_pair()
-        env.key = private
+        env.key = private.exportKey()
+        public_key = public_key.exportKey()
 
     #write password to file
     tar_data = io.BytesIO()
@@ -73,12 +74,12 @@ def add_public_ssh_key(cont):
     tarinfo.size = len(public_key)
     tarinfo.mtime = time.time()
     with tarfile.TarFile(fileobj=tar_data, mode='w') as tar:
-        tar.addfile(tarinfo, io.BytesIO(public_key))
+        tar.addfile(tarinfo, io.BytesIO(public_key.exportKey()))
 
     tar_data.seek(0)
     cont.put_archive(path='/root/', data=tar_data)
 
-def execOutput(cont,cmd, detach=False):
+def execOutput(cont, cmd, detach=False):
     """Wrapper around exec_run for streaming output"""
     sexe = cont.exec_run(cmd, stream=True, detach=detach)
     if type(sexe.output) == type(u''):
@@ -199,9 +200,9 @@ def create_final_image(state):
     # itself and forcefully remove unnecessary system-level folders
     execute(cleanup_container)
     cont = state.container
-    cont.exec_run('yum --assume-yes remove fipscheck fipscheck-lib openssh-server')
-    cont.exec_run('rm -rf /var/log')
-    cont.exec_run('rm -rf /var/lib/yum')
+    execOutput(cont, 'yum --assume-yes remove fipscheck fipscheck-lib openssh-server openssh-clients')
+    execOutput(cont, 'rm -rf /var/log')
+    execOutput(cont, 'rm -rf /var/lib/yum')
 
     conf = {'Cmd': ["/usr/bin/su", "-", "APP", "-c", "/home/APP/APP_rt/bin/ngamsServer -cfg /home/APP/APP/cfg/ngamsServer.conf -autoOnline -force -v 4"]}
     image_repo = docker_image_repository()
