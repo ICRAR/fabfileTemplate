@@ -337,6 +337,8 @@ def prepare_install_and_check():
     nuser = APP_user()
     install_system_packages()
     create_user(nuser)
+    # Execute addition sudo related functions
+    env.APP_extra_sudo_function()
     # postfix_config()
 
     # Go, go, go!

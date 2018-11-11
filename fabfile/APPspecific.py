@@ -223,8 +223,15 @@ def cleanup():
     ###<<<
     pass
 
+def extra_sudo():
+    ###>>> 
+    # Provide the actual implementation here if required.
+    ###<<<
+    pass
+
 env.build_cmd = APP_build_cmd
 env.APP_init_install_function = install_sysv_init_script
 env.APP_start_check_function = start_APP_and_check_status
 env.sysinitAPP_start_check_function = sysinitstart_APP_and_check_status
 env.prepare_APP_data_dir = prepare_APP_data_dir
+env.APP_extra_sudo_function = install_docker_compose
