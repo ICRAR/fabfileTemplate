@@ -78,15 +78,31 @@ def add_public_ssh_key(cont):
     tar_data.seek(0)
     cont.put_archive(path='/root/', data=tar_data)
 
+def execOutput(cont,cmd, detach=False):
+    """Wrapper around exec_run for streaming output"""
+    sexe = cont.exec_run(cmd, stream=True, detach=detach)
+    if type(sexe.output) == type(u''):
+        print sexe.output
+    else:
+        out = True
+        while out:
+            try: 
+                out = sexe.output.next()
+                print out,
+            except StopIteration:
+                out = None
+    return
 
 def setup_container():
     """Create and prepare a docker container and let Fabric point at it"""
 
     from docker.client import DockerClient
 
-    image = 'centos:centos7'
+    image = 'library/centos'
     container_name = 'APP_installation_target'
-    cli = DockerClient.from_env(version='auto', timeout=10)
+    info("Creating docker container based on {0}".format(image))
+    info("Please stand-by....")
+    cli = DockerClient.from_env(version='auto', timeout=60)
 
     # Create and start a container using the newly created stage1 image
     cont = cli.containers.run(image=image, name=container_name, remove=False, detach=True, tty=True)
@@ -96,22 +112,26 @@ def setup_container():
     try:
         host_ip = cli.api.inspect_container(cont.id)['NetworkSettings']['IPAddress']
 
-        info("Updating and installing OpenSSH server in container")
-        cont.exec_run('yum -y update')
-        cont.exec_run('yum -y install openssh-server sudo')
-        cont.exec_run('yum clean all')
+        # info("Updating and installing OpenSSH server in container")
+        # execOutput(cont, 'yum -y update')
+        info("Installing OpenSSH server...")
+        execOutput(cont, 'yum -y install openssh-server sudo')
+        info("Installing OpenSSH client...")
+        execOutput(cont, 'yum -y install openssh-clients sudo')
+        info("Cleaning up...")
+        execOutput(cont, 'yum clean all')
 
         info('Configuring OpenSSH to allow connections to container')
         add_public_ssh_key(cont)
-        cont.exec_run('sed -i "s/#PermitRootLogin yes/PermitRootLogin yes/" /etc/ssh/sshd_config')
-        cont.exec_run('sed -i "s/#UseDNS yes/UseDNS no/" /etc/ssh/sshd_config')
-        cont.exec_run('ssh-keygen -A')
-        cont.exec_run('chown root.root /root/.ssh/authorized_keys')
-        cont.exec_run('chmod 600 /root/.ssh/authorized_keys')
-        cont.exec_run('chmod 700 /root/.ssh')
+        execOutput(cont,'sed -i "s/#PermitRootLogin yes/PermitRootLogin yes/" /etc/ssh/sshd_config')
+        execOutput(cont,'sed -i "s/#UseDNS yes/UseDNS no/" /etc/ssh/sshd_config')
+        execOutput(cont,'ssh-keygen -A')
+        execOutput(cont,'chown root.root /root/.ssh/authorized_keys')
+        execOutput(cont,'chmod 600 /root/.ssh/authorized_keys')
+        execOutput(cont,'chmod 700 /root/.ssh')
 
         info('Starting OpenSSH deamon in container')
-        cont.exec_run('/usr/sbin/sshd -D', detach=True)
+        execOutput(cont,'/usr/sbin/sshd -D', detach=True)
     except:
         failure("Error while preparing container for APP installation, cleaning up...")
         cont.stop()
@@ -128,6 +148,9 @@ def setup_container():
     # We disable the known hosts check since docker containers created at
     # different times might end up having the same IP assigned to them, and the
     # ssh known hosts check will fail
+    #
+    # NOTE: This does NOT work on a Mac, because the docker0 network is not
+    #       available!
     with settings(disable_known_hosts=True):
         execute(check_ssh)
 
