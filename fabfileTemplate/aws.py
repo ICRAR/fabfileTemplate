@@ -25,6 +25,7 @@ Module containing AWS-related methods and tasks
 
 import os
 import time
+import six
 
 from fabric.colors import green, red, blue, yellow
 from fabric.contrib.console import confirm
@@ -124,7 +125,7 @@ def create_instances(conn, sgid):
 
     n_instances = int(env.AWS_INSTANCES)
     if n_instances > 1:
-        names = ["%s_%d" % (env.AWS_INSTANCE_NAME, i) for i in xrange(n_instances)]
+        names = ["%s_%d" % (env.AWS_INSTANCE_NAME, i) for i in range(n_instances)]
     else:
         names = [env.AWS_INSTANCE_NAME]
     puts('Creating instances {0}'.format(names))
@@ -261,7 +262,7 @@ def print_instance(inst, name=None):
         if k == 'Name':
             val = blue(val)
             if name is not None:
-                name = unicode(name)
+                name = six.text_type(name)
                 if val.find(name) == -1:
                     outfl = False
                 else:
@@ -281,7 +282,7 @@ def print_instance(inst, name=None):
         outdict['Launch time'] = '{0}'.format(l_time)
     if outfl:
         for k in outlist:
-            if outdict.has_key(k):
+            if k in outdict:
                 puts("{0}: {1}".format(k, outdict[k]))
         puts('')
 
@@ -311,7 +312,7 @@ def terminate(instance_id):
     print_instance(inst)
 
     puts('')
-    if tagdict.has_key('Created By') and tagdict['Created By'] != userAtHost():
+    if 'Created By' in tagdict and tagdict['Created By'] != userAtHost():
         puts('******************************************************')
         puts('WARNING: This instances has not been created by you!!!')
         puts('******************************************************')

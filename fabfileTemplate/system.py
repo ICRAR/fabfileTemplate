@@ -113,7 +113,7 @@ def get_linux_flavor():
     """
 
     # Already ran through this method
-    if env.has_key('linux_flavor'):
+    if 'linux_flavor' in env:
         return env.linux_flavor
 
     linux_flavor = None

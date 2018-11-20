@@ -38,7 +38,7 @@ env.pkgs = {
                     'wget',
                     ],
             'APP_EXTRA_PYTHON_PACKAGES': [
-                    'pycrypto',
+                    'pycryptodome',
                     'sphinx'
                     ],
         }

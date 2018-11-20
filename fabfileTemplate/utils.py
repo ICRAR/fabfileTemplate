@@ -27,7 +27,6 @@ import math
 import os
 import socket
 import time
-import types
 from six.moves import urllib
 
 from fabric.colors import green, red, yellow, blue
@@ -45,7 +44,7 @@ def to_boolean(choice, default=False):
     :param choice: the text string input
     :type choice: string
     """
-    if type(choice) == types.BooleanType:
+    if isinstance(choice,(bool)):
         return choice
     valid = {"True":  True,  "true": True, "yes": True, "ye": True, "y": True,
              "False": False, "false": False,  "no": False, "n": False}
@@ -81,10 +80,10 @@ def whatsmyip():
         req = urllib.request.Request(whatsmyip)
         myip = urllib.request.urlopen(req, timeout=5).read()
     except:
-        puts(red('Unable to derive IP through {0}'.format(whatismyip)))
+        puts(red('Unable to derive IP through {0}'.format(whatsmyip)))
         myip = '127.0.0.1'
     info(myip)
-    return myip
+    return myip.decode('utf-8')
 
 
 def home():
@@ -175,7 +174,7 @@ def get_public_key(key_filename):
 
     with open(key_filename) as f:
         okey = RSA.importKey(f.read())
-        return okey.exportKey('OpenSSH')
+        return okey.exportKey('OpenSSH').decode('utf-8')
 
 
 def generate_key_pair():
