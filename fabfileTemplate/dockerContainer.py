@@ -35,9 +35,9 @@ from fabric.state import env
 from fabric.tasks import execute
 from fabric.utils import puts
 
-from APPcommon import APP_root_dir, APP_user, APP_source_dir
-from system import get_fab_public_key
-from utils import check_ssh, generate_key_pair, run, success, failure,\
+from fabfileTemplate.APPcommon import APP_root_dir, APP_user, APP_source_dir
+from fabfileTemplate.system import get_fab_public_key
+from fabfileTemplate.utils import check_ssh, generate_key_pair, run, success, failure,\
     default_if_empty, info
 
 
@@ -83,13 +83,13 @@ def execOutput(cont, cmd, detach=False):
     """Wrapper around exec_run for streaming output"""
     sexe = cont.exec_run(cmd, stream=True, detach=detach)
     if type(sexe.output) == type(u''):
-        print sexe.output
+        print(sexe.output)
     else:
         out = True
         while out:
             try: 
                 out = sexe.output.next()
-                print out,
+                print(out)
             except StopIteration:
                 out = None
     return

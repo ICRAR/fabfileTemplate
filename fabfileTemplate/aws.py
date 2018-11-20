@@ -33,8 +33,8 @@ from fabric.state import env
 from fabric.tasks import execute
 from fabric.utils import puts, abort, fastprint
 
-from APPcommon import APP_revision, APP_user, APP_name
-from utils import default_if_empty, whatsmyip, check_ssh, key_filename
+from fabfileTemplate.APPcommon import APP_revision, APP_user, APP_name
+from fabfileTemplate.utils import default_if_empty, whatsmyip, check_ssh, key_filename
 
 # Don't re-export the tasks imported from other modules
 __all__ = ['create_aws_instances', 'list_instances', 'terminate']

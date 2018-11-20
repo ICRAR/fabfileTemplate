@@ -28,7 +28,7 @@ import os
 import socket
 import time
 import types
-import urllib2
+from six.moves import urllib
 
 from fabric.colors import green, red, yellow, blue
 from fabric.context_managers import settings, hide
@@ -78,7 +78,8 @@ def whatsmyip():
     """
     whatismyip = 'http://bot.whatismyipaddress.com/'
     try:
-        myip = urllib2.urlopen(whatismyip, timeout=5).readlines()[0]
+        req = urllib.request.Request(whatsmyip)
+        myip = urllib.request.urlopen(request, timeout=5).read()
     except:
         puts(red('Unable to derive IP through {0}'.format(whatismyip)))
         myip = '127.0.0.1'

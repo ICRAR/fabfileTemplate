@@ -23,7 +23,7 @@
 Module containing system-level utility methods and fabric tasks
 """
 import os
-import urlparse
+from six.moves.urllib import parse as urlparse
 
 from fabric.colors import blue, green
 from fabric.context_managers import cd, settings
@@ -33,7 +33,7 @@ from fabric.state import env
 from fabric.utils import puts, abort
 import pkg_resources
 
-from utils import run, sudo, get_public_key
+from fabfileTemplate.utils import run, sudo, get_public_key
 
 
 # List of supported OSes

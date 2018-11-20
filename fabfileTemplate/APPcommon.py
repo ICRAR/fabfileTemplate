@@ -28,10 +28,11 @@ fabfile is used. Please make sure not to use it without those modifications.
 """
 import contextlib
 import functools
-import httplib
+from six.moves import http_client as httplib
 import os
 import tempfile
-import urllib2
+from six.moves.urllib import parse as urlparse
+
 
 from fabric.context_managers import settings, cd
 from fabric.contrib.files import exists, sed
@@ -41,11 +42,11 @@ from fabric.state import env
 from fabric.utils import abort
 from fabric.colors import red
 
-from pkgmgr import install_system_packages, check_brew_port, check_brew_cellar
-from system import check_dir, download, check_command, \
+from fabfileTemplate.pkgmgr import install_system_packages, check_brew_port, check_brew_cellar
+from fabfileTemplate.system import check_dir, download, check_command, \
     create_user, get_linux_flavor, python_setup, check_python, \
     MACPORT_DIR
-from utils import is_localhost, home, default_if_empty, sudo, run, success,\
+from fabfileTemplate.utils import is_localhost, home, default_if_empty, sudo, run, success,\
     info
 
 # Don't re-export the tasks imported from other modules, only the ones defined
@@ -406,7 +407,7 @@ def upload_to(host, filename, port=7777):
     """
     with contextlib.closing(httplib.HTTPConnection(host, port)) as conn:
         conn.putrequest('POST', '/QARCHIVE?filename=%s' % (
-            urllib2.quote(os.path.basename(filename)),))
+            urlparse.quote(os.path.basename(filename)),))
         conn.putheader('Content-Length', os.stat(filename).st_size)
         conn.endheaders()
         with open(filename) as f:

@@ -31,13 +31,13 @@ from fabric.operations import local
 from fabric.state import env
 from fabric.tasks import execute
 
-from aws import create_aws_instances
-from dockerContainer import setup_container, create_final_image
-from utils import repo_root, check_ssh, append_desc
-from system import check_sudo
+from fabfileTemplate.aws import create_aws_instances
+from fabfileTemplate.dockerContainer import setup_container, create_final_image
+from fabfileTemplate.utils import repo_root, check_ssh, append_desc
+from fabfileTemplate.system import check_sudo
 
-from APPcommon import install_and_check, prepare_install_and_check
-from APPcommon import create_sources_tarball, upload_to, APP_revision
+from fabfileTemplate.APPcommon import install_and_check, prepare_install_and_check
+from fabfileTemplate.APPcommon import create_sources_tarball, upload_to, APP_revision
 
 
 # Don't re-export the tasks imported from other modules, only ours
