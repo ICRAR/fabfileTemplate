@@ -79,7 +79,7 @@ def whatsmyip():
     whatismyip = 'http://bot.whatismyipaddress.com/'
     try:
         req = urllib.request.Request(whatsmyip)
-        myip = urllib.request.urlopen(request, timeout=5).read()
+        myip = urllib.request.urlopen(req, timeout=5).read()
     except:
         puts(red('Unable to derive IP through {0}'.format(whatismyip)))
         myip = '127.0.0.1'
