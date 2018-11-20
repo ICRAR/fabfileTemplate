@@ -76,13 +76,14 @@ def whatsmyip():
     NOTE: This is only used for EC2 setups, thus it is assumed
     that the host is on-line.
     """
-    whatismyip = 'http://bot.whatismyipaddress.com/'
+    whatsmyip = 'http://bot.whatismyipaddress.com/'
     try:
         req = urllib.request.Request(whatsmyip)
         myip = urllib.request.urlopen(req, timeout=5).read()
     except:
         puts(red('Unable to derive IP through {0}'.format(whatismyip)))
         myip = '127.0.0.1'
+    info(myip)
     return myip
 
 
