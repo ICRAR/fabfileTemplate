@@ -116,6 +116,9 @@ then
 	else
 		PYTHON_EXEC=python3
 	fi
+else
+# if PYTHON_EXEC is specified use that version
+    PYTHON_VERSION=$(${PYTHON_EXEC} -V | awk -F'[^0-9]*' '$0=$2' 2>&1)
 fi
 if [[ -z "$(command -v ${PYTHON_EXEC} 2> /dev/null)" ]]
 then
