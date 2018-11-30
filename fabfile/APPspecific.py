@@ -90,6 +90,7 @@ env.AWS_REGION = 'us-east-1'
 env.AWS_AMI_NAME = 'Amazon'
 env.AWS_INSTANCES = 1
 env.AWS_SEC_GROUP = env.APP_NAME.upper() # Security group allows SSH and other ports
+env.AWS_SEC_GROUP_PORTS = [22, 80, 7777, 8888] # ports to open
 env.AWS_SUDO_USER = 'ec2-user' # required to install init scripts.
 
 # Alpha-sorted packages per package manager

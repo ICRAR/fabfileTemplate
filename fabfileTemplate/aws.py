@@ -57,6 +57,7 @@ DEFAULT_AWS_INSTANCE_NAME_TPL = '{0}'.format(APP_name()+'_{0}') # gets formatted
 DEFAULT_AWS_INSTANCE_TYPE = 't1.micro'
 DEFAULT_AWS_KEY_NAME = 'icrar_ngas'
 DEFAULT_AWS_SEC_GROUP = 'NGAS' # Security group allows SSH and other ports
+DEFAULT_AWS_SEC_GROUP_PORTS = [22, 80, 7777, 8888]
 
 # Connection defaults
 DEFAULT_AWS_PROFILE = 'NGAS'
@@ -94,25 +95,31 @@ def check_create_aws_sec_group(conn):
     """
     Check whether the security group exists
     """
+    import boto.exception
 
     default_if_empty(env, 'AWS_SEC_GROUP', DEFAULT_AWS_SEC_GROUP)
+    default_if_empty(env, 'AWS_SEC_GROUP_PORTS', DEFAULT_AWS_SEC_GROUP_PORTS)
 
-    ngas_secgroup = env.AWS_SEC_GROUP
+    app_secgroup = env.AWS_SEC_GROUP
     sec = conn.get_all_security_groups()
     conn.close()
-    for sg in sec:
-        if sg.name.upper() == ngas_secgroup:
-            puts(green("AWS Security Group {0} exists ({1})".format(ngas_secgroup, sg.id)))
-            return sg.id
+    exfl = False
+    for appsg in sec:
+        if appsg.name.upper() == app_secgroup:
+            puts(green("AWS Security Group {0} exists ({1})".format(app_secgroup, appsg.id)))
+            exfl = True
+    if not exfl:
+        # Not found, create a new one
+        appsg = conn.create_security_group(app_secgroup, '{0} default permissions'.format(APP_name()))
 
-    # Not found, create a new one
-    ngassg = conn.create_security_group(ngas_secgroup, '{0} default permissions'.format(APP_name()))
-    ngassg.authorize('tcp', 22, 22, '0.0.0.0/0')
-    ngassg.authorize('tcp', 80, 80, '0.0.0.0/0')
-    ngassg.authorize('tcp', 5678, 5678, '0.0.0.0/0')
-    ngassg.authorize('tcp', 7777, 7777, '0.0.0.0/0')
-    return ngassg.id
-
+    # make sure the correct ports are open
+    for port in env.AWS_SEC_GROUP_PORTS:
+        try:
+            appsg.authorize('tcp', port, port, '0.0.0.0/0')
+        except boto.exception.EC2ResponseError as error:
+            if not error.code == 'InvalidPermission.Duplicate':
+                raise error
+    return appsg.id
 
 def create_instances(conn, sgid):
     """
