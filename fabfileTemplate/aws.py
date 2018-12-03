@@ -104,10 +104,11 @@ def check_create_aws_sec_group(conn):
     sec = conn.get_all_security_groups()
     conn.close()
     exfl = False
-    for appsg in sec:
-        if appsg.name.upper() == app_secgroup:
-            puts(green("AWS Security Group {0} exists ({1})".format(app_secgroup, appsg.id)))
+    for sg in sec:
+        if sg.name.upper() == app_secgroup:
+            puts(green("AWS Security Group {0} exists ({1})".format(app_secgroup, sg.id)))
             exfl = True
+            appsg = sg
     if not exfl:
         # Not found, create a new one
         appsg = conn.create_security_group(app_secgroup, '{0} default permissions'.format(APP_name()))
@@ -120,6 +121,12 @@ def check_create_aws_sec_group(conn):
             if not error.code == 'InvalidPermission.Duplicate':
                 raise error
     return appsg.id
+
+def check_vpc(secg_id):
+    """
+    Check and return the VPC ID for the secg_id given
+    """
+    pass
 
 def create_instances(conn, sgid):
     """
