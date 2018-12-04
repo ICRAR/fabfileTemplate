@@ -180,7 +180,7 @@ def generate_key_pair():
     from paramiko import RSAKey
 
     key = RSAKey.generate(2048)
-    pubkey = key.get_base64()
+    pubkey = 'ssh-rsa ' + key.get_base64()
     return key, pubkey
 
 
