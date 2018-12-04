@@ -170,19 +170,17 @@ def key_filename(key_name):
 
 def get_public_key(key_filename):
 
-    from Crypto.PublicKey import RSA
-
-    with open(key_filename) as f:
-        okey = RSA.importKey(f.read())
-        return okey.exportKey('OpenSSH').decode('utf-8')
+    from paramiko import RSAKey
+    mykey = RSAKey.from_private_key_file(key_filename)
+    return 'ssh-rsa ' + mykey.get_base64()
 
 
 def generate_key_pair():
 
-    from Crypto.PublicKey import RSA
+    from paramiko import RSAKey
 
-    key = RSA.generate(2048)
-    pubkey = key.publickey()
+    key = RSAKey.generate(2048)
+    pubkey = key.get_base64()
     return key, pubkey
 
 

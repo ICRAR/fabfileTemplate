@@ -55,6 +55,7 @@ __all__ = [
     'virtualenv_setup',
     'install_user_profile',
     'copy_sources',
+    'install_and_check'
 ]
 
 APP_NAME_DEFAULT = 'DEFAULT'
@@ -381,6 +382,7 @@ def build():
     success("{0} built and installed".format(env.APP_NAME))
 
 
+@task
 @parallel
 def install_and_check():
     """

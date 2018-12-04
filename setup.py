@@ -93,7 +93,6 @@ with open('VERSION') as vfile:
 install_requires = [
     'fabric3',
     'boto',
-    'pycryptodome'
     ]
 
 setup(
