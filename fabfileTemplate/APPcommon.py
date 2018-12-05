@@ -371,7 +371,7 @@ def build():
     with cd(APP_source_dir()):
         build_cmd = env.build_cmd()
         info('Build command: {0}'.format(build_cmd))
-        if build_cmd != '':
+        if build_cmd and build_cmd != '':
              virtualenv(build_cmd)
     
     # Install the /etc/init.d script for automatic start
