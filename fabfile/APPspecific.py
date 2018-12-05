@@ -233,7 +233,7 @@ def extra_sudo():
 def install_docker_compose():
     pass
 
-env.build_cmd = APP_build_cmd
+env.build_cmd = build_APP
 env.APP_init_install_function = install_sysv_init_script
 env.APP_start_check_function = start_APP_and_check_status
 env.sysinitAPP_start_check_function = sysinitstart_APP_and_check_status
