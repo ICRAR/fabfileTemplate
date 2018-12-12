@@ -100,8 +100,8 @@ def APP_user():
 
 
 def APP_install_dir():
-    key = 'APP_INSTALL_DIR'
-    default_if_empty(env, 'APP_INSTALL_DIR', APP_name().lower()+'_rt')
+    key = 'APP_INSTALL_DIR_NAME'
+    default_if_empty(env, key, APP_name().lower()+'_rt')
     if env[key].find('/') != 0: # make sure this is an absolute path
         env[key] = os.path.abspath(os.path.join(home(), env.APP_INSTALL_DIR))
     return env[key]
@@ -373,6 +373,9 @@ def build():
         info('Build command: {0}'.format(build_cmd))
         if build_cmd and build_cmd != '':
              virtualenv(build_cmd)
+       if 'build_function' in env and env.build_function:
+            res = env.build_function()
+        
     
     # Install the /etc/init.d script for automatic start
     nsd = APP_source_dir()
