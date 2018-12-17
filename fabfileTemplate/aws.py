@@ -26,6 +26,7 @@ Module containing AWS-related methods and tasks
 import os
 import time
 import six
+from sys import version_info
 
 from fabric.colors import green, red, blue, yellow
 from fabric.contrib.console import confirm
@@ -88,6 +89,8 @@ def aws_create_key_pair(conn):
 
     # We don't have the private key locally, save it
     if not os.path.exists(key_file):
+        if version_info[0] > 2:  # workaround for bug in boto for Python3
+            kp.material = kp.material.encode()
         kp.save('~/.ssh/')
 
 
