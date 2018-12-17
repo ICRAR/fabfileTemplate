@@ -85,7 +85,7 @@ env.AWS_KEY_NAME = 'icrar_{0}'.format(env.APP_USER)
 
 # These AWS settings are generic and should work for any user, but please make
 # sure that the instance_type is appropriate.
-env.AWS_INSTANCE_TYPE = 't1.micro'
+env.AWS_INSTANCE_TYPE = 't3.micro'
 env.AWS_REGION = 'us-east-1'
 env.AWS_AMI_NAME = 'Amazon'
 env.AWS_INSTANCES = 1
@@ -105,18 +105,22 @@ env.pkgs = {
                     'tar',
                     'wget',
                     'gcc',
+                    'git'
                     ],
             'SLES_PACKAGES': [
                     'wget',
                     'gcc',
+                    'git'
                     ],
             'BREW_PACKAGES': [
                     'wget',
                     'gcc',
+                    'git'
                     ],
             'PORT_PACKAGES': [
                     'wget',
                     'gcc',
+                    'git'
                     ],
             'APP_EXTRA_PYTHON_PACKAGES': [
                     ],
@@ -239,3 +243,7 @@ env.APP_start_check_function = start_APP_and_check_status
 env.sysinitAPP_start_check_function = sysinitstart_APP_and_check_status
 env.prepare_APP_data_dir = prepare_APP_data_dir
 env.APP_extra_sudo_function = install_docker_compose
+if 'AMI_ID' in env:
+    success("AMI_ID set to: {0}".format(env.AMI_ID))
+else:
+    success("No AMI_ID provided!")

@@ -38,17 +38,19 @@ from fabric.utils import puts, abort, fastprint
 from fabfileTemplate.APPcommon import APP_revision, APP_user, APP_name
 from fabfileTemplate.utils import default_if_empty, whatsmyip, check_ssh, key_filename
 
+import boto.ec2.networkinterface
+
 # Don't re-export the tasks imported from other modules
 __all__ = ['create_aws_instances', 'list_instances', 'terminate']
 
 # Available known AMI IDs
-AMI_IDs = {
-           'Amazon': 'ami-6178a31e',
-           'Amazon-hvm': 'ami-5679a229',
-           'CentOS': 'ami-8997afe0',
-           'Old_CentOS': 'ami-aecd60c7',
-           'SLES-SP2': 'ami-e8084981',
-           'SLES-SP3': 'ami-c08fcba8'
+AMI_INFO = {
+           'Amazon': {'id':'ami-0ff8a91507f77f867', 'root':'ec2-user'},
+           'Amazon-hvm': {'id':'ami-0ff8a91507f77f867', 'root':'ec2-user'},
+           'CentOS': {'id':'ami-8997afe0', 'root':'root'},
+           'Debian': {'id':'ami-0bd9223868b4778d7', 'root':'admin'},
+           'SLES-SP2': {'id':'ami-e8084981', 'root':'root'},
+           'SLES-SP3': {'id':'ami-c08fcba8', 'root':'root'}
            }
 
 # Instance creation defaults
@@ -61,15 +63,20 @@ DEFAULT_AWS_SEC_GROUP = 'NGAS' # Security group allows SSH and other ports
 DEFAULT_AWS_SEC_GROUP_PORTS = [22, 80, 7777, 8888]
 
 # Connection defaults
-DEFAULT_AWS_PROFILE = 'NGAS'
-DEFAULT_AWS_REGION = 'us-east-1'
+DEFAULT_AWS_PROFILE = 'NGAS'  # the default user profile to use
+DEFAULT_AWS_REGION = 'us-east-1'  # The default region
+DEFAULT_AWS_VPC_ID = 'vpc-0e2d88e4476b37393'  # The default developer VPC in region above
+DEFAULT_AWS_SUBNET = 'subnet-0bc37d21234d81577'  # The default subnet ID
+# NOTE: Both the VPC and the subnet have been created manually
+
+default_if_empty(env, 'AWS_VPC_ID', DEFAULT_AWS_VPC_ID)
 
 
 def connect():
-    import boto.ec2
+    import boto.vpc
     default_if_empty(env, 'AWS_PROFILE', DEFAULT_AWS_PROFILE)
     default_if_empty(env, 'AWS_REGION',  DEFAULT_AWS_REGION)
-    return boto.ec2.connect_to_region(env.AWS_REGION, profile_name=env.AWS_PROFILE)
+    return boto.vpc.connect_to_region(env.AWS_REGION, profile_name=env.AWS_PROFILE)
 
 def userAtHost():
     return os.environ['USER'] + '@' + whatsmyip()
@@ -108,13 +115,14 @@ def check_create_aws_sec_group(conn):
     conn.close()
     exfl = False
     for sg in sec:
-        if sg.name.upper() == app_secgroup:
+        if sg.name.upper() == app_secgroup and sg.vpc_id == env.AWS_VPC_ID:
             puts(green("AWS Security Group {0} exists ({1})".format(app_secgroup, sg.id)))
             exfl = True
             appsg = sg
     if not exfl:
         # Not found, create a new one
-        appsg = conn.create_security_group(app_secgroup, '{0} default permissions'.format(APP_name()))
+        appsg = conn.create_security_group(app_secgroup, '{0} default permissions'.format(APP_name()),
+        vpc_id=env.AWS_VPC_ID)
 
     # make sure the correct ports are open
     for port in env.AWS_SEC_GROUP_PORTS:
@@ -139,6 +147,7 @@ def create_instances(conn, sgid):
     default_if_empty(env, 'AWS_AMI_NAME',             DEFAULT_AWS_AMI_NAME)
     default_if_empty(env, 'AWS_INSTANCE_TYPE',        DEFAULT_AWS_INSTANCE_TYPE)
     default_if_empty(env, 'AWS_INSTANCES',            DEFAULT_AWS_INSTANCES)
+    puts("About to create instance {0} of type {1}.".format(env.AWS_AMI_NAME, env.AWS_INSTANCE_TYPE))
 
     n_instances = int(env.AWS_INSTANCES)
     if n_instances > 1:
@@ -159,9 +168,23 @@ def create_instances(conn, sgid):
             if not conn.disassociate_address(public_ip=public_ip):
                 abort('Could not disassociate the IP {0}'.format(public_ip))
 
-    reservations = conn.run_instances(AMI_IDs[env.AWS_AMI_NAME], instance_type=env.AWS_INSTANCE_TYPE, \
-                                    key_name=env.AWS_KEY_NAME, security_group_ids=[sgid],\
-                                    min_count=n_instances, max_count=n_instances)
+    if 'AMI_ID' in env:
+        AMI_ID = env['AMI_ID']
+        env.user = env['root']
+    else:
+        AMI_ID = AMI_INFO[env.AWS_AMI_NAME]['id']
+        env.user = AMI_INFO[env.AWS_AMI_NAME]['root']
+
+    interface = boto.ec2.networkinterface.NetworkInterfaceSpecification(subnet_id=DEFAULT_AWS_SUBNET,
+                                                                    groups=[sgid],
+                                                                    associate_public_ip_address=True)
+    interfaces = boto.ec2.networkinterface.NetworkInterfaceCollection(interface)
+
+    reservations = conn.run_instances(AMI_ID, instance_type=env.AWS_INSTANCE_TYPE, 
+                                    key_name=env.AWS_KEY_NAME,
+                                    min_count=n_instances, max_count=n_instances,
+                                    network_interfaces=interfaces
+                                    )
     instances = reservations.instances
 
     # Sleep so Amazon recognizes the new instance
@@ -237,10 +260,6 @@ def create_aws_instances():
     # AWS machine using the correct user and SSH private key
     env.hosts = host_names
     env.key_filename = key_filename(env.AWS_KEY_NAME)
-    if env.AWS_AMI_NAME in ['CentOS', 'SLES']:
-        env.user = 'root'
-    else:
-        env.user = 'ec2-user'
     # Instances have started, but are not usable yet, make sure SSH has started
     puts('Started the instance(s) now waiting for the SSH daemon to start.')
     execute(check_ssh, timeout=300)
