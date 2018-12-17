@@ -373,7 +373,7 @@ def build():
         info('Build command: {0}'.format(build_cmd))
         if build_cmd and build_cmd != '':
              virtualenv(build_cmd)
-       if 'build_function' in env and env.build_function:
+        if 'build_function' in env and env.build_function:
             res = env.build_function()
         
     
