@@ -103,7 +103,7 @@ def APP_install_dir():
     key = 'APP_INSTALL_DIR_NAME'
     default_if_empty(env, key, APP_name().lower()+'_rt')
     if env[key].find('/') != 0: # make sure this is an absolute path
-        env[key] = os.path.abspath(os.path.join(home(), env.APP_INSTALL_DIR))
+        env[key] = os.path.abspath(os.path.join(home(), env.APP_INSTALL_DIR_NAME))
     return env[key]
 
 
