@@ -93,6 +93,15 @@ env.AWS_SEC_GROUP = env.APP_NAME.upper() # Security group allows SSH and other p
 env.AWS_SEC_GROUP_PORTS = [22, 80, 7777, 8888] # ports to open
 env.AWS_SUDO_USER = 'ec2-user' # required to install init scripts.
 
+# The following dictionary contains the name of system level packages to be installed
+# on the target host. This will only be used for the hl.aws_deploy and hl.operations_deploy
+# tasks and will obviously require root or sudio privilidges on the target host.
+# The current list is just very basic and the required packages are completely dependent
+# on the target application.
+#
+# Since the fabfileTemplate supports multiple different Linux flavours as well as Mac OSX
+# there are multiple lists below for the different package managers.
+# 
 # Alpha-sorted packages per package manager
 env.pkgs = {
             'YUM_PACKAGES': [
@@ -115,19 +124,23 @@ env.pkgs = {
             'BREW_PACKAGES': [
                     'wget',
                     'gcc',
+                    'tar'
                     'git'
                     ],
             'PORT_PACKAGES': [
                     'wget',
                     'gcc',
+                    'tar'
                     'git'
                     ],
             'APP_EXTRA_PYTHON_PACKAGES': [
                     ],
         }
 
+# The following tasks will be visibile and executable as tasks in 'fab --list'.
+# Make sure the associated function definition below has the @task decorator. 
 # Don't re-export the tasks imported from other modules, only the ones defined
-# here
+# here.
 __all__ = [
     'cleanup'
 ]
@@ -146,6 +159,7 @@ from fabfileTemplate.pkgmgr import check_brew_port, check_brew_cellar
 # get the settings from the fab environment if set on command line
 settings = overwrite_defaults(defaults)
 
+# Function defining how to start and check the target application.
 def start_APP_and_check_status():
     """
     Starts the APP daemon process and checks that the server is up and running
@@ -156,6 +170,8 @@ def start_APP_and_check_status():
     ###<<<
     success('{0} help is working...'.format(env.APP_NAME))
 
+# Function defining how to start and check the target application.
+# Typically used for sysinit based daemon applications.
 def sysinitstart_APP_and_check_status():
     """
     Starts the APP daemon process and checks that the server is up and running
@@ -166,11 +182,9 @@ def sysinitstart_APP_and_check_status():
     ###<<<
     pass
 
+# This function is just a helper to create a single line of commands to be
+# executed on the target host in a shell. 
 def APP_build_cmd():
-
-    # The installation of the bsddb package (needed by ngamsCore) is in
-    # particular difficult because it requires some flags to be passed on
-    # (particularly if using MacOSX's port
     # >>>> NOTE: This function potentially needs heavy customisation <<<<<<
     build_cmd = []
     # linux_flavor = get_linux_flavor()
@@ -182,6 +196,9 @@ def APP_build_cmd():
     return ' '.join(build_cmd)
 
 
+# This is the main function executed to build the target application on the
+# target host. It is also executing the commands defined in the APP_build_cmd
+# function above. 
 def build_APP():
     """
     Builds and installs APP into the target virtualenv.
@@ -198,9 +215,10 @@ def build_APP():
             virtualenv(build_cmd)
     success("{0} built and installed".format(env.APP_NAME))
 
-
+# Function to create and fill a data directory for the target application,
+# if one is required.
 def prepare_APP_data_dir():
-    """Creates a new APP root directory"""
+    """Creates a new APP data directory"""
 
     ###>>> 
     # Provide the actual implementation here if required.
@@ -220,6 +238,8 @@ def install_sysv_init_script(nsd, nuser, cfgfile):
 
     success("{0} init script installed".format(env.APP_NAME))
 
+# Function called to get rid of the target application on the target
+# host again.
 @task
 @parallel
 def cleanup():
@@ -228,15 +248,23 @@ def cleanup():
     ###<<<
     pass
 
+# Function executed as sudo on the target machine. The will only
+# affect tasks hl.aws_deply and hl.operations_deploy.
 def extra_sudo():
     ###>>> 
     # Provide the actual implementation here if required.
     ###<<<
     pass
 
+# execute docker_compose on target machine.
 def install_docker_compose():
     pass
 
+
+# This section does not need to be modified in most cases, but
+# it is actually providing the functions above to the ones
+# actually executed by the template and thus providing the 
+# transparency required for the template to work.
 env.build_cmd = build_APP
 env.APP_init_install_function = install_sysv_init_script
 env.APP_start_check_function = start_APP_and_check_status
