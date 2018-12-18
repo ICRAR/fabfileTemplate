@@ -271,7 +271,3 @@ env.APP_start_check_function = start_APP_and_check_status
 env.sysinitAPP_start_check_function = sysinitstart_APP_and_check_status
 env.prepare_APP_data_dir = prepare_APP_data_dir
 env.APP_extra_sudo_function = install_docker_compose
-if 'AMI_ID' in env:
-    success("AMI_ID set to: {0}".format(env.AMI_ID))
-else:
-    success("No AMI_ID provided!")
