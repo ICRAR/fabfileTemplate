@@ -59,6 +59,7 @@ __all__ = [
 ]
 
 APP_NAME_DEFAULT = 'DEFAULT'
+default_if_empty(env, 'APP_NAME', APP_NAME_DEFAULT)
 # # The username to use by default on remote hosts where APP is being installed
 # # This user might be different from the initial username used to connect to the
 # # remote host, in which case it will be created first

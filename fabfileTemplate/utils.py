@@ -87,7 +87,7 @@ def whatsmyip():
 
 
 def home():
-    return run('echo $HOME')
+    return run('echo ~{0}'.format(env.APP_USER))
 
 
 @task
