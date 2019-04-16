@@ -139,7 +139,7 @@ fi
 # If not download one and untar it
 # Python 3 comes with virtualenv though
 sourceCommand="source -- $veDir/bin/activate"
-if [ ${PYTHON_VERSION} == "3" ]
+if [[ "${PYTHON_VERSION}" == "3" ]]
 then
 	veCommand="${PYTHON_EXEC} -mvenv"
 else
