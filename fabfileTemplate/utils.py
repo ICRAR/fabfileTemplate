@@ -87,7 +87,7 @@ def whatsmyip():
 
 
 def home():
-    return run('echo ~{0}'.format(env.APP_USER))
+    return run('echo ~{0}'.format(env.APP_USER), quiet=True)
 
 
 @task

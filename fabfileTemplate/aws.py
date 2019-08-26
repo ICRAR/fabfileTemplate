@@ -41,7 +41,7 @@ from fabfileTemplate.utils import default_if_empty, whatsmyip, check_ssh, key_fi
 import boto.ec2.networkinterface
 
 # Don't re-export the tasks imported from other modules
-__all__ = ['create_aws_instances', 'list_instances', 'terminate']
+__all__ = ['create_aws_instances', 'list_instances', 'terminate', 'acheck_ssh']
 
 # Available known AMI IDs
 AMI_INFO = {
@@ -76,7 +76,11 @@ def connect():
     import boto.vpc
     default_if_empty(env, 'AWS_PROFILE', DEFAULT_AWS_PROFILE)
     default_if_empty(env, 'AWS_REGION',  DEFAULT_AWS_REGION)
-    return boto.vpc.connect_to_region(env.AWS_REGION, profile_name=env.AWS_PROFILE)
+    conn =boto.vpc.connect_to_region(env.AWS_REGION, profile_name=env.AWS_PROFILE)
+    default_if_empty(env, 'AWS_KEY', conn.access_key)
+    default_if_empty(env, 'AWS_SECRET', conn.secret_key)
+
+    return conn
 
 def userAtHost():
     return os.environ['USER'] + '@' + whatsmyip()
@@ -358,3 +362,9 @@ def terminate(instance_id):
     else:
         puts(red('Instance NOT terminated!'))
     return
+
+@task
+def acheck_ssh():
+    print(env.key_filename)
+    execute(check_ssh)
+
