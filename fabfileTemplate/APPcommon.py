@@ -242,7 +242,7 @@ def create_sources_tarball(tarball_filename):
         local('cd {0}; git archive -o {1} {2}'.format(repo_root,
                                                       tarball_filename,
                                                       APP_revision()))
-        if env.APP_repo_git:
+        if env.APP_REPO_GIT:
             local('cd {0}; tar -u .git* {1}'.format(repo_root,
                                                     tarball_filename))
             local('gzip {0}'.format(tarball_filename))
