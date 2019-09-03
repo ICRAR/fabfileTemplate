@@ -93,12 +93,12 @@ def APP_name():
 
 
 def APP_repo_root():
-    default_if_empty(env, 'APP_repo_root', APP_REPO_ROOT_DEFAULT)
+    default_if_empty(env, 'APP_REPO_ROOT', APP_REPO_ROOT_DEFAULT)
     return env.APP_REPO_ROOT
 
 def APP_repo_git():
-    default_if_empty(env, 'APP_repo_git', APP_REPO_GIT_DEFAULT)
-    return env.APP_REPO_ROOT
+    default_if_empty(env, 'APP_REPO_GIT', APP_REPO_GIT_DEFAULT)
+    return env.APP_REPO_GIT
 
 def APP_user():
     default_if_empty(env, 'APP_USER', APP_USER)
@@ -237,7 +237,7 @@ def create_sources_tarball(tarball_filename):
     # Make sure we are git-archivin'ing from the root of the repository,
     # The git flag is used to indicate whether the .git* directories
     # will also be packed into the tar.
-    repo_root = env.APP_repo_root
+    repo_root = APP_repo_root()
     if has_local_git_repo():
         local('cd {0}; git archive -o {1} {2}'.format(repo_root,
                                                       tarball_filename,
