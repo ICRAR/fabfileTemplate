@@ -264,7 +264,8 @@ def copy_sources():
 
     # Because this could be happening in parallel in various machines
     # we generate a tmpfile locally, but the target file is the same
-    if not env.APP_repo_git:
+    repo_git = APP_repo_git()
+    if not repo_git:
         local_file = tempfile.mktemp(".tar.gz")
     else:
         #In this case the compression is done after git archive
