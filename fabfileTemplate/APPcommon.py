@@ -228,32 +228,44 @@ def virtualenv_setup():
 
     success("Virtualenv setup completed")
 
-def create_sources_tarball(tarball_filename):
+def create_sources_tarball(tarball_filename, git=False):
     # Make sure we are git-archivin'ing from the root of the repository,
+    # The git flag is used to indicate whether the .git* directories
+    # will also be packed into the tar.
     repo_root = env.APP_repo_root
     if has_local_git_repo():
         local('cd {0}; git archive -o {1} {2}'.format(repo_root,
                                                       tarball_filename,
                                                       APP_revision()))
+        if git:
+            local('cd {0}; tar -u .git* {1}'.format(repo_root,
+                                                    tarball_filename))
+            local('gzip {0}'.format(tarball_filename))
     else:
         local('cd {0}; tar czf {1} .'.format(repo_root, tarball_filename))
 
 
 @task
-def copy_sources():
+def copy_sources(git=False):
     """
     Creates a copy of the APP sources in the target host.
     """
 
-    # We still don't open the git repository to the world, so for the time
+    # We don't open all the git repositories to the world, so for the time
     # being we always make a tarball from our repository and copy it over
     # ssh to the remote host, where we expand it back
+    # The git flag is used to indicate whether the .git* directories
+    # will also be packed into the tar.
 
     nsd = APP_source_dir()
 
     # Because this could be happening in parallel in various machines
     # we generate a tmpfile locally, but the target file is the same
-    local_file = tempfile.mktemp(".tar.gz")
+    if not git:
+        local_file = tempfile.mktemp(".tar.gz")
+    else:
+        #In this case the compression is done after git archive
+        local_file = tempfile.mktemp(".tar")
     create_sources_tarball(local_file)
 
     # transfer the tar file if not local

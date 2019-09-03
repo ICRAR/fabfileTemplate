@@ -76,7 +76,7 @@ def connect():
     import boto.vpc
     default_if_empty(env, 'AWS_PROFILE', DEFAULT_AWS_PROFILE)
     default_if_empty(env, 'AWS_REGION',  DEFAULT_AWS_REGION)
-    conn =boto.vpc.connect_to_region(env.AWS_REGION, profile_name=env.AWS_PROFILE)
+    conn = boto.vpc.connect_to_region(env.AWS_REGION, profile_name=env.AWS_PROFILE)
     default_if_empty(env, 'AWS_KEY', conn.access_key)
     default_if_empty(env, 'AWS_SECRET', conn.secret_key)
 
