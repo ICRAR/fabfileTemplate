@@ -93,8 +93,8 @@ def APP_name():
 
 
 def APP_repo_root():
-    default_if_empty(env, 'APP_REPO_ROOT', APP_REPO_ROOT_DEFAULT)
-    return env.APP_REPO_ROOT
+    default_if_empty(env, 'APP_repo_root', APP_REPO_ROOT_DEFAULT)
+    return env.APP_repo_root
 
 def APP_repo_git():
     default_if_empty(env, 'APP_REPO_GIT', APP_REPO_GIT_DEFAULT)
