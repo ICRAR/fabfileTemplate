@@ -80,6 +80,8 @@ APP_INSTALL_DIR_NAME = env.APP_NAME.lower() + '_rt'
 
 APP_REPO_ROOT_DEFAULT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
+APP_REPO_GIT_DEFAULT = False
+
 DEFAULT_PYTHON_PKGS = [
     # Install myself into new environment
     'git+https://github.com/ICRAR/fabfileTemplate'
@@ -94,6 +96,9 @@ def APP_repo_root():
     default_if_empty(env, 'APP_repo_root', APP_REPO_ROOT_DEFAULT)
     return env.APP_REPO_ROOT
 
+def APP_repo_git():
+    default_if_empty(env, 'APP_repo_git', APP_REPO_GIT_DEFAULT)
+    return env.APP_REPO_ROOT
 
 def APP_user():
     default_if_empty(env, 'APP_USER', APP_USER)
@@ -228,7 +233,7 @@ def virtualenv_setup():
 
     success("Virtualenv setup completed")
 
-def create_sources_tarball(tarball_filename, git=False):
+def create_sources_tarball(tarball_filename):
     # Make sure we are git-archivin'ing from the root of the repository,
     # The git flag is used to indicate whether the .git* directories
     # will also be packed into the tar.
@@ -237,7 +242,7 @@ def create_sources_tarball(tarball_filename, git=False):
         local('cd {0}; git archive -o {1} {2}'.format(repo_root,
                                                       tarball_filename,
                                                       APP_revision()))
-        if git:
+        if env.APP_repo_git:
             local('cd {0}; tar -u .git* {1}'.format(repo_root,
                                                     tarball_filename))
             local('gzip {0}'.format(tarball_filename))
@@ -246,7 +251,7 @@ def create_sources_tarball(tarball_filename, git=False):
 
 
 @task
-def copy_sources(git=False):
+def copy_sources():
     """
     Creates a copy of the APP sources in the target host.
     """
@@ -254,14 +259,12 @@ def copy_sources(git=False):
     # We don't open all the git repositories to the world, so for the time
     # being we always make a tarball from our repository and copy it over
     # ssh to the remote host, where we expand it back
-    # The git flag is used to indicate whether the .git* directories
-    # will also be packed into the tar.
 
     nsd = APP_source_dir()
 
     # Because this could be happening in parallel in various machines
     # we generate a tmpfile locally, but the target file is the same
-    if not git:
+    if not env.APP_repo_git:
         local_file = tempfile.mktemp(".tar.gz")
     else:
         #In this case the compression is done after git archive
