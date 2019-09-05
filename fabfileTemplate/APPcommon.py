@@ -243,7 +243,7 @@ def create_sources_tarball(tarball_filename):
                                                       tarball_filename,
                                                       APP_revision()))
         if env.APP_REPO_GIT:
-            local('cd {0}; tar -u {1} .git*'.format(repo_root,
+            local('cd {0}; tar -uf {1} .git*'.format(repo_root,
                                                     tarball_filename))
             local('gzip {0}'.format(tarball_filename))
     else:
@@ -271,6 +271,8 @@ def copy_sources():
         #In this case the compression is done after git archive
         local_file = tempfile.mktemp(".tar")
     create_sources_tarball(local_file)
+    if repo_git:
+        local_file += ".gz"
 
     # transfer the tar file if not local
     if not is_localhost():
