@@ -75,7 +75,7 @@ def whatsmyip():
     NOTE: This is only used for EC2 setups, thus it is assumed
     that the host is on-line.
     """
-    whatsmyip = 'http://bot.whatismyipaddress.com/'
+    whatsmyip = 'https://api.ipify.org'
     try:
         req = urllib.request.Request(whatsmyip)
         myip = urllib.request.urlopen(req, timeout=5).read()
