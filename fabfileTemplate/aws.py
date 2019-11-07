@@ -70,6 +70,7 @@ DEFAULT_AWS_SUBNET = 'subnet-0bc37d21234d81577'  # The default subnet ID
 # NOTE: Both the VPC and the subnet have been created manually
 
 default_if_empty(env, 'AWS_VPC_ID', DEFAULT_AWS_VPC_ID)
+default_if_empty(env, 'AWS_SUBNET_ID', DEFAULT_AWS_SUBNET)
 
 
 def connect():
