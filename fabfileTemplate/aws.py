@@ -66,11 +66,11 @@ DEFAULT_AWS_SEC_GROUP_PORTS = [22, 80, 7777, 8888]
 DEFAULT_AWS_PROFILE = 'NGAS'  # the default user profile to use
 DEFAULT_AWS_REGION = 'us-east-1'  # The default region
 DEFAULT_AWS_VPC_ID = 'vpc-0e2d88e4476b37393'  # The default developer VPC in region above
-DEFAULT_AWS_SUBNET = 'subnet-0bc37d21234d81577'  # The default subnet ID
+DEFAULT_AWS_SUBNET_ID = 'subnet-0bc37d21234d81577'  # The default subnet ID
 # NOTE: Both the VPC and the subnet have been created manually
 
 default_if_empty(env, 'AWS_VPC_ID', DEFAULT_AWS_VPC_ID)
-default_if_empty(env, 'AWS_SUBNET_ID', DEFAULT_AWS_SUBNET)
+default_if_empty(env, 'AWS_SUBNET_ID', DEFAULT_AWS_SUBNET_ID)
 
 
 def connect():
@@ -180,7 +180,7 @@ def create_instances(conn, sgid):
         AMI_ID = AMI_INFO[env.AWS_AMI_NAME]['id']
         env.user = AMI_INFO[env.AWS_AMI_NAME]['root']
 
-    interface = boto.ec2.networkinterface.NetworkInterfaceSpecification(subnet_id=DEFAULT_AWS_SUBNET,
+    interface = boto.ec2.networkinterface.NetworkInterfaceSpecification(subnet_id=env.AWS_SUBNET_ID,
                                                                     groups=[sgid],
                                                                     associate_public_ip_address=True)
     interfaces = boto.ec2.networkinterface.NetworkInterfaceCollection(interface)
