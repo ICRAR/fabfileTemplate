@@ -88,7 +88,7 @@ def execOutput(cont, cmd, detach=False):
         out = True
         while out:
             try: 
-                out = sexe.output.next()
+                out = next(sexe.output)
                 print(out)
             except StopIteration:
                 out = None
