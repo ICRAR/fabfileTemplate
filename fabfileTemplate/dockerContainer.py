@@ -66,7 +66,7 @@ def add_public_ssh_key(cont):
     if not public_key:
         private, public_key = generate_key_pair()
         env.key = private.exportKey()
-        public_key = public_key.exportKey()
+        public_key = public_key
 
     #write password to file
     tar_data = io.BytesIO()
