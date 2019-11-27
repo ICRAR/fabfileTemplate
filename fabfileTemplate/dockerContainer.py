@@ -127,8 +127,10 @@ def setup_container():
         execOutput(cont,'sed -i "s/#PermitRootLogin yes/PermitRootLogin yes/" /etc/ssh/sshd_config')
         execOutput(cont,'sed -i "s/#UseDNS yes/UseDNS no/" /etc/ssh/sshd_config')
         execOutput(cont,'ssh-keygen -A')
-        execOutput(cont,'chown root.root /root/.ssh/authorized_keys')
-        execOutput(cont,'chmod 600 /root/.ssh/authorized_keys')
+        execOutput(cont, 'mkdir -p /root/.ssh')
+        execOutput(cont, 'touch /root/.ssh/authorized_keys')
+        execOutput(cont, 'chown root.root /root/.ssh/authorized_keys')
+        execOutput(cont, 'chmod 600 /root/.ssh/authorized_keys')
         execOutput(cont,'chmod 700 /root/.ssh')
 
         info('Starting OpenSSH deamon in container')
