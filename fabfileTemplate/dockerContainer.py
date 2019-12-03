@@ -66,7 +66,6 @@ def add_public_ssh_key(cont):
     if not public_key:
         private, public_key = generate_key_pair()
         env.key = private.exportKey()
-        public_key = public_key
 
     #write password to file
     tar_data = io.BytesIO()
@@ -74,7 +73,7 @@ def add_public_ssh_key(cont):
     tarinfo.size = len(public_key)
     tarinfo.mtime = time.time()
     with tarfile.TarFile(fileobj=tar_data, mode='w') as tar:
-        tar.addfile(tarinfo, io.BytesIO(public_key.exportKey()))
+        tar.addfile(tarinfo, io.BytesIO(bytes(public_key,'ASCII')))
 
     tar_data.seek(0)
     cont.put_archive(path='/root/', data=tar_data)
@@ -106,7 +105,8 @@ def setup_container():
     cli = DockerClient.from_env(version='auto', timeout=60)
 
     # Create and start a container using the newly created stage1 image
-    cont = cli.containers.run(image=image, name=container_name, remove=False, detach=True, tty=True)
+    cont = cli.containers.run(image=image, name=container_name, remove=False, 
+        detach=True, tty=True, ports={22:2222})
     success("Created container %s from %s" % (container_name, image))
 
     # Find out container IP, prepare container for APP installation
@@ -132,6 +132,7 @@ def setup_container():
         execOutput(cont, 'chown root.root /root/.ssh/authorized_keys')
         execOutput(cont, 'chmod 600 /root/.ssh/authorized_keys')
         execOutput(cont,'chmod 700 /root/.ssh')
+        execOutput(cont,'rm /run/nologin')
 
         info('Starting OpenSSH deamon in container')
         execOutput(cont,'/usr/sbin/sshd -D', detach=True)
@@ -142,7 +143,9 @@ def setup_container():
         raise
 
     # From now on we connect to root@host_ip using our SSH key
-    env.hosts = host_ip
+    env.hosts = ['localhost']
+    env.docker = True
+    env.port = 2222
     env.user = 'root'
     if 'key_filename' not in env and 'key' not in env:
         env.key_filename = os.path.expanduser("~/.ssh/id_rsa")

@@ -160,7 +160,10 @@ def is_localhost():
     # ensure something is run in that host
     if not env.host:
         run('echo')
-    return env.host == 'localhost' or env.host.startswith("127.0.") or \
+    if env.docker:
+        return False
+    else:
+        return env.host == 'localhost' or env.host.startswith("127.0.") or \
                        env.host == socket.gethostname()
 
 

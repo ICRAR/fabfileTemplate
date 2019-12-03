@@ -87,6 +87,11 @@ DEFAULT_PYTHON_PKGS = [
     'git+https://github.com/ICRAR/fabfileTemplate'
 ]
 
+# # Initialise whether we are installing in docker
+# # This will be modified once the image has been created.
+default_if_empty(env, 'docker', False)
+default_if_empty(env, 'docker_ports', {2222:22}) # map the SSH port by default
+
 def APP_name():
     default_if_empty(env, 'APP_NAME', APP_NAME_DEFAULT)
     return env.APP_NAME
