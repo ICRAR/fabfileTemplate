@@ -47,7 +47,8 @@ SUPPORTED_OS_LINUX = [
     'SUSE',
     'openSUSE',
     'SLES-SP2',
-    'SLES-SP3'
+    'SLES-SP3',
+    'Linux'  # This is for docker containers
 ]
 
 SUPPORTED_OS_MAC = [
@@ -159,8 +160,10 @@ def get_linux_flavor():
         puts(' '.join(SUPPORTED_OS))
         linux_flavor = prompt('LINUX flavor: ')
 
-    puts(blue("Remote machine running %s" % linux_flavor))
+    if linux_flavor == 'Linux' and env.docker:
+        linux_flavor = 'CentOS'
     env.linux_flavor = linux_flavor
+    puts(blue("Remote machine running %s" % linux_flavor))
     return linux_flavor
 
 @task
