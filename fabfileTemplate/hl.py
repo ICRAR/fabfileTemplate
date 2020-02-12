@@ -51,7 +51,7 @@ __all__ = ['user_deploy', 'operations_deploy', 'aws_deploy', 'docker_image',
 def user_deploy():
     """Compiles and installs APP in a user-owned directory."""
     check_ssh()
-    env.APP_user = env.user
+    env.APP_USER = env.user
     install_and_check()
 
 
