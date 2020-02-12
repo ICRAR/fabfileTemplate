@@ -46,7 +46,7 @@ function print_usage {
 	echo "-h, -?: Show this help"
 	echo "-f: Install Fabric into the virtual environment"
 	echo "-p <python_exec>: Use <python_exec> as the python interpreted for this virtualenv"
-	echo "-3, -2: Choose between python 3 or 2.7. Defaults to 2.7"
+	echo "-3, -2: Choose between python 3 or 2.7. Defaults to 3"
 }
 
 # Command-line option parsing
@@ -103,8 +103,8 @@ then
 	error "$veDir already exists"
 fi
 
-# Still default to python 2
-PYTHON_VERSION=${PYTHON_VERSION:-2}
+# Still default to python 3
+PYTHON_VERSION=${PYTHON_VERSION:-3}
 
 # First things first, check that we have python installed
 # We default to whatever is in the path if not specified
