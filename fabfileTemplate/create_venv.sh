@@ -116,9 +116,6 @@ then
 	else
 		PYTHON_EXEC=python3
 	fi
-else
-# if PYTHON_EXEC is specified use that version
-    PYTHON_VERSION=$(${PYTHON_EXEC} -V | awk -F'[^0-9]*' '$0=$2' 2>&1)
 fi
 if [[ -z "$(command -v ${PYTHON_EXEC} 2> /dev/null)" ]]
 then
@@ -139,26 +136,26 @@ fi
 # If not download one and untar it
 # Python 3 comes with virtualenv though
 sourceCommand="source -- $veDir/bin/activate"
-if [[ "${PYTHON_VERSION}" == "3" ]]
+if [ ${PYTHON_VERSION} = "3" ]
 then
 	veCommand="${PYTHON_EXEC} -mvenv"
 else
 	veCommand="virtualenv -p $PYTHON_EXEC"
 	if [[ -z "$(command -v virtualenv 2> /dev/null)" ]]
 	then
-		VIRTUALENV_URL='https://pypi.python.org/packages/8b/2c/c0d3e47709d0458816167002e1aa3d64d03bdeb2a9d57c5bd18448fd24cd/virtualenv-15.0.3.tar.gz#md5=a5a061ad8a37d973d27eb197d05d99bf'
+                VIRTUALENV_URL='https://files.pythonhosted.org/packages/52/15/f484da0b72093ad78f078a5e9cf54bb0c6b14169e645b06f3753e322e6b8/virtualenv-20.0.2.tar.gz'
 		if [[ ! -z "$(command -v wget 2> /dev/null)" ]]
 		then
 			wget "$VIRTUALENV_URL" || error "Failed to download virtualenv"
 		elif [[ ! -z "$(command -v curl 2> /dev/null)" ]]
 		then
-			curl "$VIRTUALENV_URL" -o virtualenv-15.0.3.tar.gz || error "Failed to download virtualenv"
+			curl -L "$VIRTUALENV_URL" -o virtualenv-20.0.2.tar.gz || error "Failed to download virtualenv"
 		else
 			error "Can't find a download tool (tried wget and curl), cannot download virtualenv"
 		fi
 
-		tar xf virtualenv-15.0.3.tar.gz || error "Failed to untar virtualenv"
-		veCommand="$PYTHON_EXEC virtualenv-15.0.3/virtualenv.py -p $PYTHON_EXEC"
+		tar xf virtualenv-20.0.2.tar.gz || error "Failed to untar virtualenv"
+		veCommand="$PYTHON_EXEC virtualenv-20.0.2/virtualenv.py -p $PYTHON_EXEC"
 		REMOVE_VE="yes"
 	fi
 fi
@@ -168,12 +165,11 @@ fi
 $veCommand -- "$veDir" || error "Failed to create virtualenv"
 if [[ "$REMOVE_VE" == "yes" ]]
 then
-	rm -rf virtualenv-15.0.3 virtualenv-15.0.3.tar.gz || warning "Failed to remove temporary copy of virtualenv"
+	rm -rf virtualenv-20.0.2 virtualenv-20.0.2.tar.gz || warning "Failed to remove temporary copy of virtualenv"
 fi
 
 # Install initial packages into the new venv
 # Fabric is needed to allow using the fab scripts in the first place.
-# pycryptodome is needed by the SSH pubkey-related bits in the fab scripts.
 # boto is needed to support the aws-related fab tasks.
 if [[ "$FABRIC_READY" == "yes" ]]
 then
@@ -183,7 +179,7 @@ then
 	then
 		FABRIC=fabric3
 	fi
-	pip install boto ${FABRIC} pycryptodome || error "Failed to install fabric packages in virtualenv"
+	pip install boto ${FABRIC} || error "Failed to install fabric packages in virtualenv"
 fi
 
 echo
