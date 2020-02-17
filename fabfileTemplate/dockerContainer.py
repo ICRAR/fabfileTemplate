@@ -35,7 +35,7 @@ from fabric.state import env
 from fabric.tasks import execute
 from fabric.utils import puts
 
-from fabfileTemplate.APPcommon import APP_root_dir, APP_user, APP_source_dir
+from fabfileTemplate.APPcommon import APP_root_dir, APP_user, APP_source_dir, APP_name
 from fabfileTemplate.system import get_fab_public_key
 from fabfileTemplate.utils import check_ssh, generate_key_pair, run, success, failure,\
     default_if_empty, info
@@ -56,7 +56,8 @@ def docker_keep_APP_src():
     return key in env
 
 def docker_image_repository():
-    default_if_empty(env, 'DOCKER_IMAGE_REPOSITORY', 'icrar/APP')
+    repo_name = "icrar/{0}".format(APP_name().lower())
+    default_if_empty(env, 'DOCKER_IMAGE_REPOSITORY', repo_name)
     return env.DOCKER_IMAGE_REPOSITORY
 
 def add_public_ssh_key(cont):
@@ -88,6 +89,8 @@ def execOutput(cont, cmd, detach=False):
         while out:
             try: 
                 out = next(sexe.output)
+                if type(out) == type(b''):
+                    out = out.strip().decode("utf-8")
                 print(out)
             except StopIteration:
                 out = None
@@ -98,7 +101,7 @@ def setup_container():
 
     from docker.client import DockerClient
 
-    image = 'library/centos'
+    image = 'library/centos:7'
     container_name = 'APP_installation_target'
     info("Creating docker container based on {0}".format(image))
     info("Please stand-by....")
@@ -119,6 +122,8 @@ def setup_container():
         execOutput(cont, 'yum -y install openssh-server sudo')
         info("Installing OpenSSH client...")
         execOutput(cont, 'yum -y install openssh-clients sudo')
+        info("Installing initscripts...")
+        execOutput(cont, 'yum -y install initscripts sudo')
         info("Cleaning up...")
         execOutput(cont, 'yum clean all')
 
@@ -160,7 +165,8 @@ def setup_container():
     with settings(disable_known_hosts=True):
         execute(check_ssh)
 
-    success('Container successfully setup! APP installation will start now')
+    success('Container successfully setup! {0} installation will start now'.\
+            format(APP_name()))
     return DockerContainerState(cli, cont)
 
 def cleanup_container():
@@ -178,7 +184,7 @@ def cleanup_container():
                 'glibc-devel', 'glibc-headers', 'kernel-headers', 'libdb-devel',
                 'make', 'openssl-devel', 'patch', 'perl', 'postgresql',
                 'postgresql-libs', 'python-devel', 'readline-devel', 'sqlite-devel',
-                'sudo', 'wget', 'zlib-devel'):
+                'sudo', 'wget', 'zlib-devel', 'libffi-devel'):
         run('yum --assumeyes --quiet remove %s' % (pkg,), warn_only=True)
     run('yum clean all')
 
@@ -205,11 +211,13 @@ def create_final_image(state):
     # itself and forcefully remove unnecessary system-level folders
     execute(cleanup_container)
     cont = state.container
-    execOutput(cont, 'yum --assume-yes remove fipscheck fipscheck-lib openssh-server openssh-clients')
+    execOutput(cont, 'yum --assumeyes --quiet remove fipscheck fipscheck-lib openssh-server openssh-clients')
     execOutput(cont, 'rm -rf /var/log')
     execOutput(cont, 'rm -rf /var/lib/yum')
 
-    conf = {'Cmd': ["/usr/bin/su", "-", "APP", "-c", "/home/APP/APP_rt/bin/ngamsServer -cfg /home/APP/APP/cfg/ngamsServer.conf -autoOnline -force -v 4"]}
+    conf = {'Cmd': ["/usr/bin/su", "-", APP_user(), "-c", 
+            "/home/{0}/{0}_rt/bin/ngamsServer -cfg /home/{0}/{1}/cfg/ngamsServer.conf -autoOnline -force -v 4".\
+            format(APP_user(), APP_name())]}
     image_repo = docker_image_repository()
 
     try:
