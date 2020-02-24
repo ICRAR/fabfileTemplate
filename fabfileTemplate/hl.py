@@ -23,7 +23,7 @@
 Module with a few high-level fabric tasks users are likely to use
 """
 
-import os
+import os, inspect
 
 from fabric.context_managers import settings
 from fabric.decorators import task, parallel
@@ -50,6 +50,7 @@ __all__ = ['user_deploy', 'operations_deploy', 'aws_deploy', 'docker_image',
 #@append_desc
 def user_deploy():
     """Compiles and installs APP in a user-owned directory."""
+    env.FAB_TASK= inspect.currentframe().f_code.co_name
     check_ssh()
     env.APP_USER = env.user
     install_and_check()
@@ -60,6 +61,7 @@ def user_deploy():
 #@append_desc
 def operations_deploy():
     """Performs a system-level setup on a host and installs APP on it"""
+    env.FAB_TASK = inspect.currentframe().f_code.co_name
     check_ssh()
     check_sudo()
     prepare_install_and_check()
@@ -73,6 +75,7 @@ def aws_deploy():
     # (actually *creating* the target host(s)) is serial.
     # After that it modifies the env.hosts to point to the target hosts
     # and then calls execute(prepare_install_and_check) which will be parallel
+    env.FAB_TASK = inspect.currentframe().f_code.co_name
     create_aws_instances()
     execute(prepare_install_and_check)
 
@@ -85,6 +88,7 @@ def docker_image():
     # Create the target container holding onto the container info
     # This container will be running an SSH server, and we will be able
     # to connect to its root user with our SSH key
+    env.FAB_TASK = inspect.currentframe().f_code.co_name
     dockerState = setup_container()
 
     # Now install into the docker container.
@@ -107,6 +111,7 @@ def prepare_release():
     """
 
     # Create the AWS instance
+    env.FAB_TASK = inspect.currentframe().f_code.co_name
     aws_deploy()
     upload_release()
 
@@ -117,6 +122,7 @@ def upload_release():
     Uploads sources and documentation to AWS instance.
     """
     # Create and upload the sources
+    env.FAB_TASK = inspect.currentframe().f_code.co_name
     sources = "APP_src-{0}.tar.gz".format(APP_revision())
     if os.path.exists(sources):
         os.unlink(sources)
