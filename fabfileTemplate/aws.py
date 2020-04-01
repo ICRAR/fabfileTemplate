@@ -368,4 +368,3 @@ def terminate(instance_id):
 def acheck_ssh():
     print(env.key_filename)
     execute(check_ssh)
-

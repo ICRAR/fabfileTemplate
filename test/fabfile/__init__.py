@@ -20,7 +20,7 @@
 #    MA 02111-1307  USA
 #
 """
-Fabric scripts for NGAS deployment and related activities.
+Fabric scripts for APPLICATION deployment and related activities.
 
 For a detailed description of a task run "fab -d <task>"
 
