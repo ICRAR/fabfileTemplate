@@ -99,11 +99,14 @@ def aws_create_key_pair(conn):
         if os.path.exists(key_file):
             os.unlink(key_file)
 
-    # We don't have the private key locally, save it
+        # We don't have the private key locally, save it
+        if not os.path.exists(key_file):
+            if version_info[0] > 2:  # workaround for bug in boto for Python3
+                kp.material = kp.material.encode()
+            kp.save('~/.ssh/')
+            return
     if not os.path.exists(key_file):
-        if version_info[0] > 2:  # workaround for bug in boto for Python3
-            kp.material = kp.material.encode()
-        kp.save('~/.ssh/')
+        raise FileNotFoundError('Key file {0} not found locally'. format(key_file))
 
 
 def check_create_aws_sec_group(conn):
