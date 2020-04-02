@@ -417,7 +417,7 @@ def install_and_check():
     starts APP and checks that it is running
     """
     copy_sources()
-    virtualenv_setup()
+    if env.APP_PYTHON_URL: virtualenv_setup()       # if APP needs python at all
     build()
     tgt_cfg = None
     if 'prepare_APP_data_dir' in env:
