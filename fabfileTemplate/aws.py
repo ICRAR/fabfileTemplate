@@ -223,6 +223,7 @@ def create_instances(conn, sgid):
         conn.create_tags([instance.id], {'Name': name,
                                          'Created By':userAThost,
                                          'APP User': nuser,
+                                         'allocate-cost-to': APP_name(),
                                          })
 
     # Associate the IP if needed
