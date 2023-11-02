@@ -92,7 +92,7 @@ with open('VERSION') as vfile:
 # extra Python packages go here
 install_requires = [
     'fabric3',
-    'boto',
+    'boto3',
     ]
 
 setup(

@@ -38,14 +38,14 @@ from fabric.utils import puts, abort, fastprint
 from fabfileTemplate.APPcommon import APP_revision, APP_user, APP_name
 from fabfileTemplate.utils import default_if_empty, whatsmyip, check_ssh, key_filename
 
-import boto.ec2.networkinterface
+import boto3
 
 # Don't re-export the tasks imported from other modules
 __all__ = ['create_aws_instances', 'list_instances', 'terminate', 'acheck_ssh']
 
 # Available known AMI IDs
 AMI_INFO = {
-           'Amazon': {'id':'ami-0ff8a91507f77f867', 'root':'ec2-user'},
+           'Amazon': {'id':'ami-0dbc3d7bc646e8516', 'root':'ec2-user'},
            'Amazon-hvm': {'id':'ami-0ff8a91507f77f867', 'root':'ec2-user'},
            'CentOS': {'id':'ami-8997afe0', 'root':'root'},
            'Debian': {'id':'ami-0bd9223868b4778d7', 'root':'admin'},
@@ -74,12 +74,23 @@ default_if_empty(env, 'AWS_SUBNET_ID', DEFAULT_AWS_SUBNET_ID)
 
 
 def connect():
-    import boto.vpc
+    import boto3
+
     default_if_empty(env, 'AWS_PROFILE', DEFAULT_AWS_PROFILE)
     default_if_empty(env, 'AWS_REGION',  DEFAULT_AWS_REGION)
-    conn = boto.vpc.connect_to_region(env.AWS_REGION, profile_name=env.AWS_PROFILE)
-    default_if_empty(env, 'AWS_KEY', conn.access_key)
-    default_if_empty(env, 'AWS_SECRET', conn.secret_key)
+#    default_if_empty(env, 'AWS_SERVER_PUBLIC_KEY', DEFAULT_ACCESS_KEY)
+#    default_if_empty(env, 'AWS_SERVER_SECRET_KEY', DEFAULT_SECRET_KEY)
+    session = boto3.Session()
+    boto_client = boto3.setup_default_session(
+            profile_name=env.AWS_PROFILE,
+            region_name=env.AWS_REGION,
+#            aws_access_key_id=env.AWS_SERVER_PUBLIC_KEY,
+#            aws_secret_access_key=env.AWS_SERVER_SECRET_KEY
+                )
+    conn = boto3.client('ec2')
+    # conn = boto3.vpc.connect_to_region(env.AWS_REGION, profile_name=env.AWS_PROFILE)
+    # default_if_empty(env, 'AWS_KEY', conn.access_key)
+    # default_if_empty(env, 'AWS_SECRET', conn.secret_key)
 
     return conn
 
@@ -93,9 +104,9 @@ def aws_create_key_pair(conn):
 
     # key does not exist on AWS, create it there and bring it back,
     # overwriting anything we have
-    kp = conn.get_key_pair(key_name)
-    if not kp:
-        kp = conn.create_key_pair(key_name)
+    kps = conn.describe_key_pairs(KeyNames=[key_name])
+    if not kps:
+        kp = conn.create_key_pair(KeyName=key_name)
         if os.path.exists(key_file):
             os.unlink(key_file)
 
@@ -113,21 +124,19 @@ def check_create_aws_sec_group(conn):
     """
     Check whether the security group exists
     """
-    import boto.exception
+    import boto3.exceptions
 
     default_if_empty(env, 'AWS_SEC_GROUP', DEFAULT_AWS_SEC_GROUP)
     default_if_empty(env, 'AWS_SEC_GROUP_PORTS', DEFAULT_AWS_SEC_GROUP_PORTS)
 
     app_secgroup = env.AWS_SEC_GROUP
-    sec = conn.get_all_security_groups()
+    sec = conn.describe_security_groups(Filters=[{'Name':'group-name','Values':[env.AWS_SEC_GROUP]}])
     conn.close()
     exfl = False
-    for sg in sec:
-        if sg.name.upper() == app_secgroup and sg.vpc_id == env.AWS_VPC_ID:
-            puts(green("AWS Security Group {0} exists ({1})".format(app_secgroup, sg.id)))
-            exfl = True
-            appsg = sg
-    if not exfl:
+    if sec['SecurityGroups']:
+        appsg = sec['SecurityGroups'][0]
+        puts(green("AWS Security Group {0} exists ({1})".format(app_secgroup, appsg['GroupId'])))
+    else:
         # Not found, create a new one
         appsg = conn.create_security_group(app_secgroup, '{0} default permissions'.format(APP_name()),
         vpc_id=env.AWS_VPC_ID)
@@ -135,11 +144,21 @@ def check_create_aws_sec_group(conn):
     # make sure the correct ports are open
     for port in env.AWS_SEC_GROUP_PORTS:
         try:
-            appsg.authorize('tcp', port, port, '0.0.0.0/0')
-        except boto.exception.EC2ResponseError as error:
-            if not error.code == 'InvalidPermission.Duplicate':
-                raise error
-    return appsg.id
+            data = conn.authorize_security_group_ingress(
+                GroupId=appsg['GroupId'],
+                IpPermissions=[
+                    {'IpProtocol': 'tcp',
+                    'FromPort': port,
+                    'ToPort': port,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]},
+                ])
+
+            # appsg.authorize('tcp', port, port, '0.0.0.0/0')
+        except conn.exceptions.from_code('InvalidPermission.Duplicate'):
+            pass
+        except conn.exceptions.ClientError as error:
+            raise error
+    return appsg['GroupId']
 
 def check_vpc(secg_id):
     """
@@ -183,17 +202,54 @@ def create_instances(conn, sgid):
         AMI_ID = AMI_INFO[env.AWS_AMI_NAME]['id']
         env.user = AMI_INFO[env.AWS_AMI_NAME]['root']
 
-    interface = boto.ec2.networkinterface.NetworkInterfaceSpecification(subnet_id=env.AWS_SUBNET_ID,
-                                                                    groups=[sgid],
-                                                                    associate_public_ip_address=True)
-    interfaces = boto.ec2.networkinterface.NetworkInterfaceCollection(interface)
+    interface = conn.create_network_interface(
+        SubnetId=env.AWS_SUBNET_ID,
+        Groups=[sgid],
+        )
+    interfaces = [
+        {
+            'AssociatePublicIpAddress': True,
+            'DeleteOnTermination': True,
+            'Description': 'string',
+            'DeviceIndex': 0,
+            'Groups': [
+                sgid
+            ],
+            'SubnetId': env.AWS_SUBNET_ID,
+        },
+    ]
 
-    reservations = conn.run_instances(AMI_ID, instance_type=env.AWS_INSTANCE_TYPE, 
-                                    key_name=env.AWS_KEY_NAME,
-                                    min_count=n_instances, max_count=n_instances,
-                                    network_interfaces=interfaces
+    TagSpecifications = [
+        {
+            'ResourceType': 'instance',
+            'Tags': [
+                {
+                    'Key': 'Name',
+                    'Value': names[0],
+                },
+                {
+                    'Key': 'Created By',
+                    'Value': userAtHost(),
+                },
+                {
+                    'Key': 'APP User',
+                    'Value': APP_user(),
+                },
+                {
+                    'Key': 'allocate-cost-to',
+                    'Value': APP_name(),
+                },
+            ]
+        },
+    ]
+
+    resource = boto3.resource('ec2')
+    instances = resource.create_instances(ImageId=AMI_ID, InstanceType=env.AWS_INSTANCE_TYPE, 
+                                    KeyName=env.AWS_KEY_NAME,
+                                    MinCount=n_instances, MaxCount=n_instances,
+                                    NetworkInterfaces=interfaces,
+                                    TagSpecifications=TagSpecifications,
                                     )
-    instances = reservations.instances
 
     # Sleep so Amazon recognizes the new instance
     for i in range(4):
@@ -201,15 +257,10 @@ def create_instances(conn, sgid):
         time.sleep(5)
 
     # Are we running yet?
-    iid = [x.id for x in instances]
-    stat = conn.get_all_instance_status(iid)
-    running = [x.state_name=='running' for x in stat]
-    puts('\nWaiting for instances to be fully available:\n')
-    while sum(running) != n_instances:
-        fastprint('.')
-        time.sleep(5)
-        stat = conn.get_all_instance_status(iid)
-        running = [x.state_name=='running' for x in stat]
+    for instance in instances:
+        print(f'EC2 instance "{instance.id}" has been launched')
+    
+        instance.wait_until_running()
     puts('.') #enforce the line-end
 
     # Local user and host
@@ -218,27 +269,20 @@ def create_instances(conn, sgid):
     # We save the user under which we install APP for later display
     nuser = APP_user()
 
-    # Tag the instance
-    for name, instance in zip(names, instances):
-        conn.create_tags([instance.id], {'Name': name,
-                                         'Created By':userAThost,
-                                         'APP User': nuser,
-                                         'allocate-cost-to': APP_name(),
-                                         })
-
     # Associate the IP if needed
     if public_ips:
         for instance, public_ip in zip(instances, public_ips):
-            puts('Current DNS name is {0}. About to associate the Elastic IP'.format(instance.dns_name))
+            puts('Current DNS name is {0}. About to associate the Elastic IP'.format(instance.public_dns_name))
             if not conn.associate_address(instance_id=instance.id, public_ip=public_ip):
                 abort('Could not associate the IP {0} to the instance {1}'.format(public_ip, instance.id))
 
     # Load the new instance data as the dns_name may have changed
     host_names = []
     for instance in instances:
-        instance.update(True)
+        instance = resource.Instance(instance.id)
         print_instance(instance)
-        host_names.append(str(instance.dns_name))
+        puts(f"DNS name/IP address: {str(instance.public_dns_name)}/{str(instance.public_ip_address)}")
+        host_names.append(str(instance.public_dns_name))
     return host_names
 
 def default_instance_name():
@@ -279,19 +323,19 @@ def list_instances(name=None):
     """
     Lists the EC2 instances associated to the user's amazon key
     """
-    conn = connect()
-    res = conn.get_all_instances()
-    for r in res:
-        for inst in r.instances:
-            print_instance(inst, name=name)
+    resource = boto3.resource('ec2')
+    instances = resource.instances.all()
+    for instance in instances:
+        print_instance(instance, name=name)
 
 
 def print_instance(inst, name=None):
     inst_id    = inst.id
-    inst_state = inst.state
+    inst_state = inst.state['Name']
     inst_type  = inst.instance_type
     pub_name   = inst.public_dns_name
-    tagdict    = inst.tags
+    pub_ip     = inst.public_ip_address
+    taglist    = inst.tags
     l_time     = inst.launch_time
     key_name   = inst.key_name
     nuser = None
@@ -303,16 +347,18 @@ def print_instance(inst, name=None):
     outdict['Instance'] = '{0} ({1}) is {2}'.format(inst_id, inst_type,
                                                     color_ec2state(inst_state
                                                                    ))
-    for k, val in tagdict.items():
-        if k == 'Name':
-            val = blue(val)
+    for tag in taglist:
+        val = tag['Value']
+        if tag['Key'] == 'Name':
+            key_name = tag['Value']
+            val = blue(key_name)
             if name is not None:
                 name = six.text_type(name)
                 if val.find(name) == -1:
                     outfl = False
                 else:
                     puts(name)
-        outdict[k] = val
+        outdict[tag['Key']] = val
     if u'APP User' in outdict.keys():
         nuser = outdict[u'APP User']
     if u'NGAS User' in outdict.keys():
@@ -350,11 +396,10 @@ def terminate(instance_id):
     if not instance_id:
         abort('No instance ID specified. Please provide one.')
 
-    conn = connect()
-    inst = conn.get_all_instances(instance_ids=[instance_id])
-    inst = inst[0].instances[0]
-    tagdict = inst.tags
-    print_instance(inst)
+    res = boto3.resource('ec2')
+    instance = res.Instance(instance_id)
+    tagdict = instance.tags
+    print_instance(instance)
 
     puts('')
     if 'Created By' in tagdict and tagdict['Created By'] != userAtHost():
@@ -363,7 +408,7 @@ def terminate(instance_id):
         puts('******************************************************')
     if confirm("Do you really want to terminate this instance?"):
         puts('Teminating instance {0}'.format(instance_id))
-        conn.terminate_instances(instance_ids=[instance_id])
+        instance.terminate()
     else:
         puts(red('Instance NOT terminated!'))
     return

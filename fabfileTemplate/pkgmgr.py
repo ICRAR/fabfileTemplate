@@ -208,7 +208,7 @@ def install_system_packages():
     # Install required packages
     linux_flavor = get_linux_flavor()
 
-    if (linux_flavor in ['CentOS', 'Amazon Linux']):
+    if (linux_flavor in ['CentOS', 'Amazon Linux', 'Linux']):
         # Update the machine completely
         errmsg = sudo('yum --assumeyes --quiet update', combine_stderr=True, warn_only=True)
         processCentOSErrMsg(errmsg)
