@@ -1,3 +1,4 @@
+/.vsproject
 /.ropeproject
 /.project
 /.pydevproject
@@ -15,5 +16,6 @@ lib
 
 .idea
 *.iml
+*.egg-info
 
 fabfile/authorized_keys
