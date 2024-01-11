@@ -174,6 +174,7 @@ def create_instances(conn, sgid):
     default_if_empty(env, 'AWS_AMI_NAME',             DEFAULT_AWS_AMI_NAME)
     default_if_empty(env, 'AWS_INSTANCE_TYPE',        DEFAULT_AWS_INSTANCE_TYPE)
     default_if_empty(env, 'AWS_INSTANCES',            DEFAULT_AWS_INSTANCES)
+    default_if_empty(env, 'AWS_KEY_NAME',             DEFAULT_AWS_KEY_NAME)
     puts("About to create instance {0} of type {1}.".format(env.AWS_AMI_NAME, env.AWS_INSTANCE_TYPE))
 
     n_instances = int(env.AWS_INSTANCES)
@@ -337,7 +338,7 @@ def print_instance(inst, name=None):
     pub_ip     = inst.public_ip_address
     taglist    = inst.tags
     l_time     = inst.launch_time
-    key_name   = inst.key_name
+    ssl_key_name   = inst.key_name
     nuser = None
     outdict = {}
     outfl = True    # Controls whether info is printed
@@ -365,7 +366,7 @@ def print_instance(inst, name=None):
         nuser = outdict[u'NGAS User']
     if inst_state == 'running':
         ssh_user = ' -l%s' % (nuser) if nuser else ''
-        outdict['Connect'] = 'ssh -i ~/.ssh/{0}.pem {1}{2}'.format(key_name,
+        outdict['Connect'] = 'ssh -i ~/.ssh/{0}.pem {1}{2}'.format(ssl_key_name,
                                                                    pub_name,
                                                                    ssh_user)
         outdict['Terminate'] = 'fab aws.terminate:instance_id={0}'.format(

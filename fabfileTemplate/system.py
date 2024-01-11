@@ -259,6 +259,7 @@ def python_setup(ppath):
         puts(green('Installing Python.....'))
         run('make install >> /tmp/py_install.log 2>&1')
         ppath = '{0}/bin/python{1}'.format(ppath, env.APP_PYTHON_VERSION)
+        run('rm -rf /tmp/Python*')
     return ppath
 
 def get_fab_public_key():
